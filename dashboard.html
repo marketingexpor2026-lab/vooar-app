@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VOOAR" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Dashboard — VOOAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #6c63ff;
+      --accent: #00d4ff;
+      --danger: #ff6b9d;
+      --glass: rgba(255,255,255,.07);
+      --glass-b: rgba(255,255,255,.15);
+      --muted: rgba(255,255,255,.5);
+      --r: 18px;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      min-height: 100vh;
+      color: #fff;
+    }
+    /* Bg orbs */
+    .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: .15; pointer-events: none; z-index: 0; }
+    .orb1 { width: 500px; height: 500px; background: #6c63ff; top: -150px; left: -150px; }
+    .orb2 { width: 350px; height: 350px; background: #00d4ff; bottom: -100px; right: -100px; }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      background: rgba(15,12,41,.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-b);
+      height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+    }
+    .nav-logo {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .user-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 50px; padding: 5px 14px 5px 5px;
+      cursor: pointer; text-decoration: none; color: #fff;
+      transition: background .2s;
+    }
+    .user-chip:hover { background: rgba(255,255,255,.12); }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .avatar.lg {
+      width: 80px; height: 80px; font-size: 28px; font-weight: 800;
+      box-shadow: 0 8px 32px rgba(108,99,255,.5);
+    }
+    .btn-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted); transition: all .2s;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+    /* Main */
+    main {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto;
+      padding: 84px 28px 60px;
+    }
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 14px; margin-bottom: 28px;
+    }
+    .page-title { font-size: 24px; font-weight: 700; }
+    .page-title small { font-size: 15px; font-weight: 400; color: var(--muted); margin-left: 8px; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 36px; }
+    .stat {
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: var(--r); padding: 20px 22px;
+    }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 8px; }
+    .stat-val { font-size: 30px; font-weight: 700; }
+    .stat-icon { float: right; margin-top: -2px; opacity: .35; }
+
+    /* Grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px; }
+
+    /* Card */
+    .project-card {
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 20px; overflow: hidden;
+      transition: transform .25s, box-shadow .25s;
+    }
+    .project-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(0,0,0,.35); }
+
+    .card-thumb {
+      height: 160px;
+      background: linear-gradient(135deg, rgba(108,99,255,.25), rgba(0,212,255,.15));
+      position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb-placeholder { opacity: .3; }
+    .views-badge {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(8px);
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 11px; font-weight: 500;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .layer-badge {
+      position: absolute; bottom: 10px; left: 10px;
+      background: rgba(108,99,255,.6); backdrop-filter: blur(8px);
+      border-radius: 20px; padding: 3px 9px; font-size: 11px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .target-multi-badge {
+      position: absolute; top: 10px; left: 10px;
+      background: rgba(0,212,255,.55); backdrop-filter: blur(8px);
+      border-radius: 20px; padding: 3px 9px; font-size: 10px; font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .btn-sm.dup { color: rgba(255,255,255,.65); }
+    .btn-sm.dup:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+    .card-body { padding: 18px; }
+    .card-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+    .card-actions { display: flex; gap: 7px; }
+
+    .btn-sm {
+      flex: 1; padding: 9px 6px; border-radius: 10px;
+      border: 1px solid var(--glass-b); background: transparent;
+      color: #fff; font-size: 12px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: all .2s; font-family: inherit;
+    }
+    .btn-sm:hover { background: rgba(255,255,255,.1); }
+    .btn-sm.primary { background: rgba(108,99,255,.2); border-color: rgba(108,99,255,.4); color: #a78bfa; }
+    .btn-sm.primary:hover { background: rgba(108,99,255,.35); }
+    .btn-sm.share { background: rgba(0,212,255,.1); border-color: rgba(0,212,255,.3); color: #00d4ff; }
+    .btn-sm.share:hover { background: rgba(0,212,255,.2); }
+    .btn-sm.del { color: var(--danger); }
+    .btn-sm.del:hover { background: rgba(255,107,157,.15); border-color: rgba(255,107,157,.3); }
+
+    /* Primary action button */
+    .btn-primary {
+      padding: 11px 22px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 7px;
+      box-shadow: 0 4px 16px rgba(108,99,255,.4);
+      transition: all .25s; font-family: inherit;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(108,99,255,.5); }
+
+    /* Empty */
+    .empty {
+      grid-column: 1/-1; text-align: center;
+      background: var(--glass); border: 1.5px dashed var(--glass-b);
+      border-radius: 20px; padding: 64px 24px;
+    }
+    .empty-emoji { font-size: 52px; margin-bottom: 16px; }
+    .empty h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .empty p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+    /* Modals */
+    .overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: rgba(18,15,45,.97); border: 1px solid var(--glass-b);
+      border-radius: 22px; padding: 32px; width: 100%; max-width: 380px;
+    }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .modal p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-cancel {
+      flex: 1; padding: 12px; border-radius: 12px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      color: #fff; font-size: 14px; cursor: pointer; font-family: inherit;
+      transition: background .2s;
+    }
+    .btn-cancel:hover { background: rgba(255,255,255,.12); }
+    .btn-danger {
+      flex: 1; padding: 12px; border-radius: 12px;
+      background: rgba(255,107,157,.15); border: 1px solid rgba(255,107,157,.3);
+      color: var(--danger); font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all .2s;
+    }
+    .btn-danger:hover { background: rgba(255,107,157,.28); }
+
+    /* QR Modal */
+    .modal.qr-modal { max-width: 440px; }
+    .qr-project-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    }
+    .qr-project-thumb {
+      width: 48px; height: 48px; border-radius: 10px;
+      background: linear-gradient(135deg, rgba(108,99,255,.3), rgba(0,212,255,.2));
+      object-fit: cover; flex-shrink: 0;
+    }
+    .qr-project-name { font-size: 16px; font-weight: 700; }
+    .qr-project-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .qr-card-preview {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      border-radius: 16px; padding: 18px 18px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .qr-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.4); }
+    .qr-wrap { display: flex; justify-content: center; }
+    .qr-wrap canvas, .qr-wrap img { border-radius: 10px; }
+    .qr-scan-hint { font-size: 12px; color: rgba(255,255,255,.55); text-align: center; }
+
+    .qr-link {
+      background: rgba(255,255,255,.06); border: 1px solid var(--glass-b);
+      border-radius: 10px; padding: 9px 12px;
+      font-size: 11px; color: var(--muted); word-break: break-all;
+      text-align: center; margin-bottom: 14px;
+    }
+    .qr-download-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
+    }
+    .dl-btn {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 10px 6px; border-radius: 11px; cursor: pointer;
+      font-size: 12px; font-weight: 600; font-family: inherit; transition: all .2s;
+      border: 1px solid var(--glass-b); background: var(--glass); color: #fff;
+    }
+    .dl-btn:hover { transform: translateY(-1px); }
+    .dl-btn.png { border-color: rgba(74,222,128,.35); color: #4ade80; background: rgba(74,222,128,.08); }
+    .dl-btn.png:hover { background: rgba(74,222,128,.18); }
+    .dl-btn.jpg { border-color: rgba(0,212,255,.35); color: var(--accent); background: rgba(0,212,255,.08); }
+    .dl-btn.jpg:hover { background: rgba(0,212,255,.18); }
+    .dl-btn.pdf { border-color: rgba(255,107,157,.35); color: var(--danger); background: rgba(255,107,157,.08); }
+    .dl-btn.pdf:hover { background: rgba(255,107,157,.18); }
+
+    /* Plan limit bar */
+    .plan-limit-bar {
+      margin-top: 10px; height: 4px; border-radius: 4px;
+      background: rgba(255,255,255,.12); overflow: hidden;
+    }
+    .plan-limit-fill {
+      height: 100%; border-radius: 4px; transition: width .5s ease;
+      background: linear-gradient(90deg, #6c63ff, #00d4ff);
+    }
+    .plan-limit-fill.warn { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .plan-limit-label {
+      font-size: 10px; color: var(--muted); margin-top: 5px; text-align: right;
+    }
+
+    /* Limit modal */
+    .modal.limit-modal { max-width: 400px; text-align: center; }
+    .limit-modal-icon {
+      font-size: 52px; margin-bottom: 14px; display: block;
+    }
+    .limit-modal .plan-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0;
+    }
+    .upgrade-card {
+      background: rgba(255,255,255,.06); border: 1px solid var(--glass-b);
+      border-radius: 12px; padding: 12px 8px; text-align: center;
+      cursor: pointer; transition: all .2s;
+    }
+    .upgrade-card:hover { background: rgba(108,99,255,.2); border-color: rgba(108,99,255,.5); }
+    .upgrade-card.featured { background: rgba(108,99,255,.15); border-color: rgba(108,99,255,.45); }
+    .upgrade-card .uc-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .upgrade-card .uc-limit { font-size: 22px; font-weight: 800; color: var(--accent); }
+    .upgrade-card .uc-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(20,18,45,.96); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-b); color: #fff;
+      padding: 13px 24px; border-radius: 12px;
+      font-size: 14px; transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 9999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 600px) {
+      main { padding: 76px 16px 40px; }
+      nav { padding: 0 16px; }
+      .page-title { font-size: 20px; }
+      .stat-val { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<nav>
+  <a class="nav-logo" href="dashboard.html">VOOAR</a>
+  <div class="nav-right">
+    <a class="user-chip" href="profile.html" id="nav-user">
+      <div class="avatar" id="nav-av">?</div>
+      <span style="font-size:13px;font-weight:500" id="nav-name">...</span>
+    </a>
+    <button class="btn-icon" title="Sair" onclick="logout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <div class="page-title">Meus Projetos <small id="count-label"></small></div>
+    <button class="btn-primary" onclick="newProject()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Novo Projeto
+    </button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">
+        <svg class="stat-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Projetos
+      </div>
+      <div class="stat-val" id="s-projects">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">
+        <svg class="stat-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Visualizações
+      </div>
+      <div class="stat-val" id="s-views">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">
+        <svg class="stat-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Alvos AR
+      </div>
+      <div class="stat-val" id="s-targets">0</div>
+    </div>
+    <div class="stat" id="stat-plan">
+      <div class="stat-label">Plano</div>
+      <div class="stat-val" style="font-size:18px;padding-top:4px" id="s-plan">Free</div>
+      <div class="plan-limit-bar" id="plan-limit-bar" style="display:none">
+        <div class="plan-limit-fill" id="plan-limit-fill" style="width:0%"></div>
+      </div>
+      <div class="plan-limit-label" id="plan-limit-label"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div style="font-size:17px;font-weight:600">Projetos AR</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<!-- Delete modal -->
+<div class="overlay" id="del-modal">
+  <div class="modal">
+    <h3>Excluir projeto?</h3>
+    <p>Esta ação não pode ser desfeita. O projeto e todas as suas camadas serão removidos permanentemente.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModals()">Cancelar</button>
+      <button class="btn-danger" onclick="confirmDelete()">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share / QR modal -->
+<div class="overlay" id="share-modal">
+  <div class="modal qr-modal">
+    <div class="qr-project-header">
+      <img id="qr-thumb" class="qr-project-thumb" src="" alt="" onerror="this.style.display='none'" />
+      <div>
+        <div class="qr-project-name" id="qr-proj-name">Projeto</div>
+        <div class="qr-project-sub">QR Code · Realidade Aumentada</div>
+      </div>
+    </div>
+
+    <!-- Card preview (fundo escuro como ficará no download) -->
+    <div class="qr-card-preview">
+      <div class="qr-card-label">VOOAR — Aponte a câmera</div>
+      <div class="qr-wrap" id="qr-wrap"></div>
+      <div class="qr-scan-hint" id="qr-scan-hint">📷 Escaneie para ver em Realidade Aumentada</div>
+    </div>
+
+    <!-- Status de sincronização -->
+    <div id="qr-sync-bar" style="border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:500;display:none;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)">
+      <span id="qr-sync-icon" style="font-size:16px">⏳</span>
+      <span id="qr-sync-msg" style="flex:1;line-height:1.4">Verificando sincronização...</span>
+      <button id="qr-sync-retry" onclick="retrySyncShare()" style="display:none;background:rgba(108,99,255,.25);border:1px solid rgba(108,99,255,.5);color:#a78bfa;border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">Tentar novamente</button>
+    </div>
+
+    <div class="qr-link" id="qr-link-text"></div>
+
+    <!-- Botões de download -->
+    <div class="qr-download-row">
+      <button class="dl-btn png" onclick="downloadQR('png')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PNG
+      </button>
+      <button class="dl-btn jpg" onclick="downloadQR('jpg')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        JPG
+      </button>
+      <button class="dl-btn pdf" onclick="downloadQR('pdf')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        PDF
+      </button>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModals()">Fechar</button>
+      <button class="btn-primary" style="flex:1;justify-content:center" onclick="copyLink()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copiar link
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Plan limit modal -->
+<div class="overlay" id="limit-modal">
+  <div class="modal limit-modal">
+    <span class="limit-modal-icon">🚀</span>
+    <h3 id="limit-modal-title">Limite do plano atingido</h3>
+    <p id="limit-modal-msg">Você atingiu o limite de projetos do plano <strong id="limit-plan-name">Free</strong>. Faça upgrade para criar mais projetos.</p>
+    <div class="plan-cards">
+      <div class="upgrade-card" onclick="closeModals()">
+        <div class="uc-name">Starter</div>
+        <div class="uc-limit">10</div>
+        <div class="uc-sub">projetos</div>
+      </div>
+      <div class="upgrade-card featured" onclick="closeModals()">
+        <div class="uc-name">Pro ⭐</div>
+        <div class="uc-limit">30</div>
+        <div class="uc-sub">projetos</div>
+      </div>
+      <div class="upgrade-card" onclick="closeModals()">
+        <div class="uc-name">Business</div>
+        <div class="uc-limit">100</div>
+        <div class="uc-sub">projetos</div>
+      </div>
+      <div class="upgrade-card" onclick="closeModals()">
+        <div class="uc-name">Developer</div>
+        <div class="uc-limit">∞</div>
+        <div class="uc-sub">ilimitado</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModals()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="drive.js"></script>
+<script src="sync.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  const user = JSON.parse(localStorage.getItem('vooar_current_user'));
+  if (!user) location.href = 'index.html';
+
+  let pendingDeleteId    = null;
+  let shareUrl           = '';
+  let currentShareProject = null;
+  let planLimits         = null; // { plan, limit, current, canCreate }
+
+  async function fetchPlanLimits() {
+    try {
+      const r = await fetch(`/api/plan-limits/${user.id}`, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) return;
+      planLimits = await r.json();
+      updatePlanDisplay();
+    } catch { /* offline — use local count */ }
+  }
+
+  function updatePlanDisplay() {
+    if (!planLimits) return;
+    const { plan, limit, current } = planLimits;
+    const isInfinite = !isFinite(limit);
+
+    document.getElementById('s-plan').textContent = plan;
+
+    const bar   = document.getElementById('plan-limit-bar');
+    const fill  = document.getElementById('plan-limit-fill');
+    const label = document.getElementById('plan-limit-label');
+
+    if (isInfinite) {
+      bar.style.display   = 'none';
+      label.textContent   = '∞ projetos';
+    } else {
+      bar.style.display   = 'block';
+      const pct = Math.min(100, Math.round((current / limit) * 100));
+      fill.style.width    = pct + '%';
+      fill.classList.toggle('warn', pct >= 80);
+      label.textContent   = `${current} / ${limit} projetos`;
+    }
+  }
+
+  function showLimitModal() {
+    const plan = planLimits?.plan || (user.plan || 'Free');
+    document.getElementById('limit-plan-name').textContent = plan;
+    document.getElementById('limit-modal-title').textContent = 'Limite atingido — Plano ' + plan;
+    document.getElementById('limit-modal-msg').innerHTML =
+      `Você já tem <strong>${planLimits?.current ?? '?'} / ${planLimits?.limit ?? '?'}</strong> projetos no plano <strong>${plan}</strong>.<br>Faça upgrade para criar mais.`;
+    document.getElementById('limit-modal').classList.add('open');
+  }
+
+  const getProjects = () => JSON.parse(localStorage.getItem(`vooar_projects_${user.id}`) || '[]');
+  const saveProjects = p => localStorage.setItem(`vooar_projects_${user.id}`, JSON.stringify(p));
+
+  async function init() {
+    const initials = user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('nav-av').textContent = initials;
+    document.getElementById('nav-name').textContent = user.name.split(' ')[0];
+    document.getElementById('s-plan').textContent = user.plan || 'Free';
+
+    // ① Carrega do localStorage imediatamente (sem espera)
+    const local = getProjects();
+    updateStats(local);
+    renderGrid(local);
+
+    // ② Busca limites do plano em background
+    fetchPlanLimits();
+
+    // ② Sincroniza com o servidor em background (via SyncManager)
+    SyncManager.on('flushed', d => { if (d.sent) { init(); } }); // re-render se fila foi enviada
+    try {
+      const r = await fetch(`/api/projects/${user.id}`, { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) return;
+      const serverProjects = await r.json();
+      if (!serverProjects.length) return;
+
+      // Merge: servidor ganha, mas preserva dados locais (triggerImageLocal, IndexedDB blobs)
+      const localNow = getProjects();
+      const merged   = serverProjects.map(sp => {
+        const lp = localNow.find(l => l.id === sp.id);
+        if (!lp) return sp;
+        // Preserva imagens locais (base64) que o servidor não tem
+        return {
+          ...sp,
+          triggerImageLocal: lp.triggerImageLocal || sp.triggerImageLocal,
+          targets: (sp.targets || []).map((t, i) => {
+            const lt = (lp.targets || [])[i];
+            return lt ? { ...t, triggerImageLocal: lt.triggerImageLocal || t.triggerImageLocal } : t;
+          }),
+        };
+      });
+      // Mantém projetos que existem só localmente (criados offline)
+      localNow.forEach(lp => {
+        if (!merged.find(m => m.id === lp.id)) merged.unshift(lp);
+      });
+      merged.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      saveProjects(merged);
+      updateStats(merged);
+      renderGrid(merged);
+    } catch { /* offline ou servidor fora — localStorage já foi carregado */ }
+  }
+
+  function updateStats(projects) {
+    const totalViews   = projects.reduce((a, p) => a + (p.views || 0), 0);
+    const totalTargets = projects.reduce((a, p) => {
+      if (p.targets) return a + p.targets.length;
+      return a + (p.triggerImage ? 1 : 0);
+    }, 0);
+
+    // Projetos: mostra X/limit se tivermos os dados do plano
+    const count = projects.length;
+    if (planLimits && isFinite(planLimits.limit)) {
+      document.getElementById('s-projects').innerHTML =
+        `${count}<span style="font-size:14px;opacity:.45;font-weight:400">/${planLimits.limit}</span>`;
+      // Atualiza o current local para refletir alterações offline
+      planLimits.current    = count;
+      planLimits.canCreate  = count < planLimits.limit;
+      updatePlanDisplay();
+    } else {
+      document.getElementById('s-projects').textContent = count;
+    }
+
+    document.getElementById('s-views').textContent    = totalViews;
+    document.getElementById('s-targets').textContent  = totalTargets;
+    document.getElementById('count-label').textContent = count ? `(${count})` : '';
+  }
+
+  function renderGrid(projects) {
+    const grid = document.getElementById('grid');
+    if (!projects.length) {
+      grid.innerHTML = `<div class="empty">
+        <div class="empty-emoji">🚀</div>
+        <h3>Nenhum projeto ainda</h3>
+        <p>Crie seu primeiro projeto de Realidade Aumentada!</p>
+        <button class="btn-primary" style="margin:0 auto" onclick="newProject()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Criar primeiro projeto
+        </button>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = projects.map(p => {
+      const date    = new Date(p.updatedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'2-digit'});
+      const layers  = (p.layers || []).length;
+
+      // Thumbnail: prefere imagem local (base64) → server URL → placeholder
+      const firstTarget = (p.targets && p.targets[0]) || null;
+      const thumbSrc = p.triggerImageLocal
+        || (firstTarget?.triggerImageLocal)
+        || p.triggerImage
+        || firstTarget?.triggerImage
+        || null;
+      const thumb = thumbSrc
+        ? `<img src="${thumbSrc}" alt="" onerror="this.style.display='none'" />`
+        : `<svg class="thumb-placeholder" width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2"><path d="M12 2L20.5 7v10L12 22 3.5 17V7z"/><circle cx="12" cy="12" r="3.5" fill="white" opacity=".4"/></svg>`;
+
+      // Target count
+      const targetCount = p.targets ? p.targets.length : (p.triggerImage ? 1 : 0);
+      const hasVideo    = p.targets ? p.targets.some(t => t.arVideo) : !!p.arVideo;
+      const hasMind     = !!p.mindFile;
+
+      // Status badges
+      const targetBadge  = targetCount > 1
+        ? `<div class="target-multi-badge">🎯 ${targetCount} alvos</div>` : '';
+      const readyBadge   = hasVideo && hasMind
+        ? `<div class="layer-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> AR pronto</div>`
+        : (hasVideo ? `<div class="layer-badge">🎬 vídeo</div>` : '');
+
+      return `<div class="project-card">
+        <div class="card-thumb">
+          ${thumb}
+          <div class="views-badge">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            ${p.views || 0}
+          </div>
+          ${targetBadge}
+          ${readyBadge}
+        </div>
+        <div class="card-body">
+          <div class="card-name" title="${p.name}">${p.name}</div>
+          <div class="card-desc">${p.description || 'Sem descrição'}</div>
+          <div class="card-meta">
+            <span>${targetCount} alvo${targetCount !== 1 ? 's' : ''}${layers ? ' · ' + layers + ' camada' + (layers!==1?'s':'') : ''}</span>
+            <span>${date}</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-sm primary" onclick="editProject(${p.id})">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+              Editar
+            </button>
+            <button class="btn-sm share" onclick="shareProject(${p.id})">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+              QR
+            </button>
+            <button class="btn-sm dup" onclick="duplicateProject(${p.id})" title="Duplicar projeto" style="flex:0;min-width:36px;padding:9px 8px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+            <button class="btn-sm del" onclick="deleteProject(${p.id})" style="flex:0;min-width:36px;padding:9px 8px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function newProject() {
+    // Verifica limites (refaz a consulta para garantir dados frescos)
+    await fetchPlanLimits();
+    if (planLimits && !planLimits.canCreate) {
+      showLimitModal();
+      return;
+    }
+    // Fallback local: se não conseguiu dados do servidor, conta localmente
+    if (!planLimits) {
+      const localCount = getProjects().length;
+      const localPlan  = user.plan || 'Free';
+      const localLimit = { Free: 3, Starter: 10, Pro: 30, Business: 100, Developer: Infinity }[localPlan] || 3;
+      if (localCount >= localLimit && isFinite(localLimit)) {
+        // Preenche planLimits com dados locais para exibir o modal
+        planLimits = { plan: localPlan, limit: localLimit, current: localCount, canCreate: false };
+        showLimitModal();
+        return;
+      }
+    }
+
+    const p = {
+      id: Date.now(), name: 'Novo Projeto', description: '',
+      triggerImage: null, layers: [], music: null, qrColor: '#6c63ff',
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), views: 0
+    };
+    const projects = getProjects();
+    projects.unshift(p);
+    saveProjects(projects);
+    location.href = `editor.html?id=${p.id}`;
+  }
+
+  function editProject(id) { location.href = `editor.html?id=${id}`; }
+
+  async function shareProject(id) {
+    const p = getProjects().find(x => x.id === id);
+    if (!p) return;
+    currentShareProject = p;
+    const url = `${location.origin}${location.pathname.replace('dashboard.html','viewer.html')}?uid=${user.id}&id=${id}`;
+    shareUrl = url;
+
+    // Cabeçalho do modal
+    document.getElementById('qr-proj-name').textContent = p.name;
+    const thumb = document.getElementById('qr-thumb');
+    const firstThumb = p.triggerImageLocal
+      || (p.targets && p.targets[0]?.triggerImageLocal)
+      || p.triggerImage
+      || (p.targets && p.targets[0]?.triggerImage)
+      || null;
+    if (firstThumb) { thumb.src = firstThumb; thumb.style.display = 'block'; }
+    else { thumb.style.display = 'none'; }
+
+    document.getElementById('qr-link-text').textContent = url;
+    const wrap = document.getElementById('qr-wrap');
+    wrap.innerHTML = '';
+    new QRCode(wrap, {
+      text: url, width: 200, height: 200,
+      colorDark: p.qrColor || '#6c63ff', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    document.getElementById('share-modal').classList.add('open');
+
+    // Verifica e sincroniza o projeto antes de compartilhar
+    await checkAndSyncForShare(p);
+  }
+
+  // Guarda referência para poder chamar "Tentar novamente"
+  let _shareSyncProject = null;
+
+  async function checkAndSyncForShare(p) {
+    _shareSyncProject = p;
+    const bar  = document.getElementById('qr-sync-bar');
+    const icon = document.getElementById('qr-sync-icon');
+    const msg  = document.getElementById('qr-sync-msg');
+    const retry = document.getElementById('qr-sync-retry');
+
+    function setStatus(state, iconChar, text) {
+      bar.style.display = 'flex';
+      bar.style.borderColor = ({ ok:'rgba(74,222,128,.35)', warn:'rgba(251,191,36,.35)', err:'rgba(248,113,113,.35)', ing:'rgba(167,139,250,.25)' })[state] || 'rgba(255,255,255,.1)';
+      icon.textContent = iconChar;
+      msg.textContent  = text;
+      msg.style.color  = ({ ok:'#4ade80', warn:'#fbbf24', err:'#f87171', ing:'#a78bfa' })[state] || '#fff';
+      retry.style.display = state === 'warn' || state === 'err' ? 'block' : 'none';
+    }
+
+    // ── Verificação de assets device-local ──────────────────────────────────
+    const allTargets = p.targets || [];
+    const hasMind    = p.mindFile && !p.mindFile.startsWith('indexeddb://');
+    const hasVideo   = p.arVideo || allTargets.some(t => t.arVideo);
+    const hasLocalVideo = allTargets.some(t => (t.arVideo || '').startsWith('idb://'))
+                       || (p.arVideo || '').startsWith('idb://');
+
+    if (!hasMind) {
+      setStatus('err', '❌',
+        'Arquivo .mind não enviado ao servidor — abra o editor, compile e faça upload do .mind.');
+      return;
+    }
+    if (hasLocalVideo) {
+      setStatus('err', '❌',
+        'Vídeo salvo só neste dispositivo (idb://) — abra o editor e envie o vídeo pelo botão de upload.');
+      return;
+    }
+    if (!hasVideo) {
+      setStatus('warn', '⚠️', 'Nenhum vídeo AR configurado — adicione um vídeo no editor.');
+      return;
+    }
+
+    // ── Tenta sincronizar com o servidor ────────────────────────────────────
+    setStatus('ing', '⏳', 'Sincronizando com o servidor...');
+
+    try {
+      // Força verificação de conectividade
+      const status = await SyncManager.checkServer();
+
+      if (status === 'offline') {
+        setStatus('warn', '⚠️', 'Sem internet — link pode não funcionar em outros dispositivos agora.');
+        return;
+      }
+      if (status === 'no_server') {
+        setStatus('warn', '🟡', 'Servidor não encontrado — o link pode não funcionar remotamente.');
+        return;
+      }
+
+      // Envia o projeto (agora _serverOk está true após checkServer)
+      const ok = await SyncManager.syncProject(user.id, p);
+
+      if (ok) {
+        setStatus('ok', '✅', 'Sincronizado! O link funciona em qualquer dispositivo.');
+      } else {
+        setStatus('warn', '⚠️', 'Não foi possível sincronizar — tente novamente.');
+      }
+    } catch(e) {
+      setStatus('warn', '⚠️', 'Erro ao sincronizar: ' + (e.message || 'verifique a conexão.'));
+    }
+  }
+
+  async function retrySyncShare() {
+    if (_shareSyncProject) await checkAndSyncForShare(_shareSyncProject);
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(shareUrl).then(() => toast('🔗 Link copiado!'));
+  }
+
+  // ── Download QR ─────────────────────────────────────────────────────────────
+  async function downloadQR(format) {
+    const p = currentShareProject;
+    if (!p) return;
+    const safeName = p.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+    // Cria canvas de alta resolução com card bonito
+    const card = await buildQRCard(p);
+
+    if (format === 'png') {
+      _triggerDownload(card.toDataURL('image/png'), `qr_${safeName}.png`);
+      toast('📥 PNG baixado!');
+    } else if (format === 'jpg') {
+      // JPG precisa de fundo branco (JPG não suporta alpha)
+      const tmp = document.createElement('canvas');
+      tmp.width = card.width; tmp.height = card.height;
+      const tctx = tmp.getContext('2d');
+      tctx.fillStyle = '#fff';
+      tctx.fillRect(0, 0, tmp.width, tmp.height);
+      tctx.drawImage(card, 0, 0);
+      _triggerDownload(tmp.toDataURL('image/jpeg', .95), `qr_${safeName}.jpg`);
+      toast('📥 JPG baixado!');
+    } else if (format === 'pdf') {
+      if (!window.jspdf) { toast('⚠️ Aguarde carregar jsPDF…'); return; }
+      const { jsPDF } = window.jspdf;
+      // A5 retrato (148 × 210 mm)
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+      const imgData = card.toDataURL('image/png');
+      const ratio   = card.height / card.width;
+      const pdfW    = 148;
+      const pdfH    = Math.round(pdfW * ratio);
+      doc.addImage(imgData, 'PNG', 0, (210 - pdfH) / 2, pdfW, pdfH);
+      doc.save(`qr_${safeName}.pdf`);
+      toast('📥 PDF baixado!');
+    }
+  }
+
+  function _triggerDownload(dataUrl, filename) {
+    const a = document.createElement('a');
+    a.href     = dataUrl;
+    a.download = filename;
+    a.click();
+  }
+
+  async function buildQRCard(p) {
+    // Obtém o QR canvas gerado pelo QRCode.js
+    const qrEl = document.querySelector('#qr-wrap canvas') || document.querySelector('#qr-wrap img');
+    const QR_SIZE = 340;
+
+    const W = 560, H = 760;
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // ── Fundo gradiente ──
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0,   '#0f0c29');
+    grad.addColorStop(0.5, '#302b63');
+    grad.addColorStop(1,   '#24243e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Orbs decorativos ──
+    const drawOrb = (x, y, r, color, alpha) => {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, color.replace(')', `,${alpha})`).replace('rgb', 'rgba'));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    };
+    drawOrb(0,   0,   200, 'rgb(108,99,255)', .3);
+    drawOrb(W,   H,   200, 'rgb(0,212,255)',  .2);
+
+    // ── Logo VOOAR ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.font = 'bold 52px Arial, sans-serif';
+    ctx.fillText('VOOAR', W / 2, 72);
+
+    // ── Subtítulo ──
+    ctx.font = '20px Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.45)';
+    ctx.fillText('Realidade Aumentada', W / 2, 106);
+
+    // ── Thumbnails dos alvos (até 3 lado a lado) ──
+    let thumbY = 130;
+    const firstTarget = p.targets && p.targets[0];
+    const thumbSrc = p.triggerImageLocal
+      || firstTarget?.triggerImageLocal
+      || p.triggerImage
+      || firstTarget?.triggerImage
+      || null;
+    if (thumbSrc) {
+      try {
+        // Pega até 3 imagens de alvos diferentes
+        const srcs = [];
+        if (p.targets && p.targets.length > 1) {
+          for (const t of p.targets.slice(0, 3)) {
+            const s = t.triggerImageLocal || t.triggerImage;
+            if (s) srcs.push(s);
+          }
+        } else {
+          srcs.push(thumbSrc);
+        }
+
+        const count = srcs.length;
+        const tH   = 80;
+        const tW   = count > 1 ? Math.min(120, (W - 80) / count) : 120;
+        const gap   = count > 1 ? 8 : 0;
+        const totalW = tW * count + gap * (count - 1);
+        let tX = (W - totalW) / 2;
+
+        for (const src of srcs) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+          ctx.save();
+          _roundRect(ctx, tX, thumbY, tW, tH, 12);
+          ctx.clip();
+          ctx.drawImage(img, tX, thumbY, tW, tH);
+          ctx.restore();
+          tX += tW + gap;
+        }
+        thumbY += tH + 14;
+      } catch {}
+    }
+
+    // ── Nome do projeto ──
+    ctx.font = 'bold 26px Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    // Trunca nome longo
+    let name = p.name;
+    if (ctx.measureText(name).width > W - 80) {
+      while (ctx.measureText(name + '…').width > W - 80 && name.length > 0) name = name.slice(0, -1);
+      name += '…';
+    }
+    ctx.fillText(name, W / 2, thumbY + 32);
+
+    // ── QR code ──
+    const qrX = (W - QR_SIZE) / 2;
+    const qrY = thumbY + 56;
+
+    // Caixa branca atrás do QR
+    ctx.fillStyle = '#fff';
+    _roundRect(ctx, qrX - 12, qrY - 12, QR_SIZE + 24, QR_SIZE + 24, 18);
+    ctx.fill();
+
+    // Desenha o QR
+    if (qrEl) {
+      ctx.drawImage(qrEl, qrX, qrY, QR_SIZE, QR_SIZE);
+    }
+
+    // ── Texto embaixo do QR ──
+    const belowY = qrY + QR_SIZE + 38;
+    ctx.font = '18px Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.fillText('Escaneie para ver em', W / 2, belowY);
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText('Realidade Aumentada', W / 2, belowY + 32);
+
+    // ── URL embaixo ──
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    const shortUrl = shareUrl.replace(/https?:\/\//, '').slice(0, 50);
+    ctx.fillText(shortUrl, W / 2, H - 22);
+
+    return canvas;
+  }
+
+  function _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function deleteProject(id) {
+    pendingDeleteId = id;
+    document.getElementById('del-modal').classList.add('open');
+  }
+
+  async function duplicateProject(id) {
+    // Verifica limites antes de duplicar
+    await fetchPlanLimits();
+    if (planLimits && !planLimits.canCreate) {
+      showLimitModal();
+      return;
+    }
+
+    const projects = getProjects();
+    const src = projects.find(p => p.id === id);
+    if (!src) return;
+    const newId = Date.now();
+    const copy  = {
+      ...JSON.parse(JSON.stringify(src)), // deep clone
+      id:          newId,
+      name:        src.name + ' (cópia)',
+      createdAt:   new Date().toISOString(),
+      updatedAt:   new Date().toISOString(),
+      views:       0,
+      // Targets: copia dados mas remove referências a blobs idb (são device-local)
+      targets: (src.targets || []).map(t => ({
+        ...t,
+        id: Date.now() + Math.round(Math.random() * 9999),
+        arVideo:     t.arVideo?.startsWith('idb://') ? null : t.arVideo,
+        arVideoType: t.arVideo?.startsWith('idb://') ? null : t.arVideoType,
+      })),
+    };
+    projects.unshift(copy);
+    saveProjects(projects);
+    // Sync via SyncManager (com fila se offline)
+    SyncManager.syncProject(user.id, copy).catch(() => {});
+    toast('📋 Projeto duplicado!');
+    updateStats(projects);
+    renderGrid(projects);
+  }
+
+  function confirmDelete() {
+    const updated = getProjects().filter(p => p.id !== pendingDeleteId);
+    saveProjects(updated);
+    // Remove do servidor (silencioso)
+    fetch(`/api/projects/${user.id}/${pendingDeleteId}`, { method: 'DELETE' }).catch(() => {});
+    closeModals();
+    toast('🗑️ Projeto excluído');
+    updateStats(updated);
+    renderGrid(updated);
+  }
+
+  function closeModals() {
+    document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open'));
+  }
+
+  function logout() {
+    localStorage.removeItem('vooar_current_user');
+    location.href = 'index.html';
+  }
+
+  function toast(msg, ms=3000) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) closeModals(); }));
+
+  init();
+</script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>

@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VOOAR" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Editor — VOOAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #6c63ff; --accent: #00d4ff; --danger: #ff6b9d;
+      --glass: rgba(255,255,255,.07); --glass-b: rgba(255,255,255,.14);
+      --muted: rgba(255,255,255,.5); --r: 14px;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      min-height: 100vh; color: #fff;
+    }
+
+    /* ── Header ── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      height: 60px; display: flex; align-items: center;
+      background: rgba(15,12,41,.92); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-b); padding: 0 20px; gap: 12px;
+    }
+    .btn-back {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 10px; padding: 7px 12px;
+      color: var(--muted); font-size: 13px; cursor: pointer;
+      transition: all .2s; font-family: inherit; flex-shrink: 0;
+    }
+    .btn-back:hover { color: #fff; background: rgba(255,255,255,.12); }
+    #project-name-input {
+      flex: 1; background: transparent; border: none;
+      color: #fff; font-size: 16px; font-weight: 600;
+      font-family: inherit; outline: none; padding: 6px 10px; border-radius: 8px;
+      transition: background .2s;
+    }
+    #project-name-input:focus { background: rgba(255,255,255,.07); }
+    .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-preview {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,212,255,.1); border: 1px solid rgba(0,212,255,.3);
+      border-radius: 10px; padding: 7px 14px;
+      color: var(--accent); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all .2s; font-family: inherit;
+    }
+    .btn-preview:hover { background: rgba(0,212,255,.2); }
+    .btn-save {
+      display: flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border: none; border-radius: 10px; padding: 8px 18px;
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; box-shadow: 0 4px 14px rgba(108,99,255,.4);
+      transition: all .2s; font-family: inherit;
+    }
+    .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.5); }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid; grid-template-columns: 1fr 340px;
+      padding-top: 60px; min-height: 100vh;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .preview-panel { display: none; }
+    }
+    .editor-panel { padding: 24px 22px 100px; overflow-y: auto; max-height: calc(100vh - 60px); }
+
+    /* ── Section ── */
+    .section {
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 18px; padding: 20px; margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--muted); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .section-title .badge {
+      background: rgba(108,99,255,.3); border: 1px solid rgba(108,99,255,.4);
+      border-radius: 5px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+      color: #a78bfa; letter-spacing: .3px;
+    }
+
+    /* ── Multi-target ── */
+    .targets-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .btn-add-target {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 10px;
+      background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.35);
+      color: #a78bfa; font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all .2s;
+    }
+    .btn-add-target:hover { background: rgba(108,99,255,.28); }
+
+    .target-card {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 16px; padding: 14px; margin-bottom: 10px;
+      transition: border-color .2s;
+    }
+    .target-card:hover { border-color: rgba(255,255,255,.18); }
+    .target-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .target-index-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: .5px;
+    }
+    .target-aspect-pill {
+      font-size: 10px; color: var(--muted);
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 6px; padding: 2px 7px;
+    }
+    .target-aspect-pill.has-ratio { color: #4ade80; border-color: rgba(74,222,128,.25); background: rgba(74,222,128,.07); }
+    .btn-remove-target {
+      display: flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 7px;
+      background: transparent; border: 1px solid rgba(255,107,157,.3);
+      color: var(--danger); cursor: pointer; font-family: inherit;
+      font-size: 14px; transition: all .2s;
+    }
+    .btn-remove-target:hover { background: rgba(255,107,157,.15); }
+
+    /* ── MÍDIA AR: dual upload ── */
+    .media-grid {
+      display: grid; grid-template-columns: 1fr 44px 1fr; gap: 0;
+      align-items: start;
+    }
+    .media-col { display: flex; flex-direction: column; gap: 10px; }
+    .media-col-label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,.8);
+    }
+    .media-col-label .step {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; flex-shrink: 0;
+    }
+    .media-col-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    .upload-zone {
+      border: 2px dashed rgba(255,255,255,.18);
+      border-radius: 14px; cursor: pointer;
+      transition: all .25s; position: relative;
+      background: rgba(255,255,255,.03);
+      overflow: hidden; min-height: 130px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 16px 12px; gap: 8px;
+    }
+    .upload-zone:hover { border-color: var(--primary); background: rgba(108,99,255,.07); }
+    .upload-zone.has-media { padding: 0; border-style: solid; border-color: rgba(255,255,255,.2); }
+    .upload-zone.has-media .uz-placeholder { display: none; }
+    .upload-zone.uploading { border-color: var(--accent); }
+    .uz-icon { font-size: 26px; }
+    .uz-hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .uz-hint strong { color: rgba(255,255,255,.8); display: block; font-size: 12px; }
+    .uz-preview {
+      width: 100%; height: 130px; object-fit: cover; display: block;
+      border-radius: 12px;
+    }
+    .uz-video-preview {
+      width: 100%; height: 130px; object-fit: cover; display: block;
+      border-radius: 12px; background: #000;
+    }
+    .uz-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,.55);
+      display: none; align-items: center; justify-content: center; gap: 6px;
+      font-size: 12px; font-weight: 500; border-radius: 12px;
+    }
+    .upload-zone.has-media:hover .uz-overlay { display: flex; }
+    .uz-status {
+      font-size: 11px; color: var(--muted); display: flex;
+      align-items: center; gap: 5px; margin-top: 4px;
+    }
+    .uz-status.ok { color: #4ade80; }
+    .uz-status.err { color: var(--danger); }
+    .uz-status.uploading { color: var(--accent); }
+
+    /* Mind file upload */
+    .mind-upload-wrap {
+      margin-top: 14px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding-top: 14px;
+    }
+    .mind-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .mind-drop {
+      flex: 1; border: 2px dashed rgba(255,255,255,.18);
+      border-radius: 11px; padding: 12px 14px;
+      cursor: pointer; transition: all .2s;
+      background: rgba(255,255,255,.03);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .mind-drop:hover { border-color: #00d4ff; background: rgba(0,212,255,.07); }
+    .mind-drop.has-file { border-color: rgba(74,222,128,.4); background: rgba(74,222,128,.07); }
+    .mind-drop.uploading { border-color: var(--accent); }
+    .mind-icon { font-size: 20px; flex-shrink: 0; }
+    .mind-info { flex: 1; min-width: 0; }
+    .mind-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85); }
+    .mind-sub { font-size: 11px; color: var(--muted); }
+    .mind-compiler-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 12px; border-radius: 9px;
+      background: rgba(0,212,255,.1); border: 1px solid rgba(0,212,255,.3);
+      color: var(--accent); font-size: 11px; font-weight: 600;
+      text-decoration: none; transition: all .2s; white-space: nowrap; flex-shrink: 0;
+    }
+    .mind-compiler-btn:hover { background: rgba(0,212,255,.2); }
+    .mind-step-tip {
+      background: rgba(108,99,255,.1); border: 1px solid rgba(108,99,255,.25);
+      border-radius: 10px; padding: 10px 12px; margin-top: 10px;
+      font-size: 11px; color: rgba(255,255,255,.65); line-height: 1.7;
+    }
+    .mind-step-tip strong { color: #a78bfa; }
+    .mind-step-tip a { color: var(--accent); }
+
+    /* Arrow between columns */
+    .media-arrow {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding-top: 32px;
+    }
+    .ar-arrow-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(108,99,255,.5); flex-shrink: 0;
+    }
+    .ar-label { font-size: 9px; font-weight: 700; letter-spacing: .5px; color: var(--muted); text-transform: uppercase; }
+
+    /* URL input alternative */
+    .or-sep {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 11px; margin: 6px 0;
+    }
+    .or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.1); }
+
+    /* Progress bar */
+    .upload-progress {
+      height: 3px; border-radius: 2px; background: rgba(255,255,255,.1);
+      overflow: hidden; margin-top: 6px;
+    }
+    .upload-progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent));
+      width: 0%; transition: width .3s; border-radius: 2px;
+    }
+
+    /* Layers */
+    .add-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .add-btn {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--glass-b);
+      border-radius: 10px; padding: 10px 12px;
+      color: #fff; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .2s; font-family: inherit;
+    }
+    .add-btn:hover { background: rgba(108,99,255,.2); border-color: rgba(108,99,255,.4); }
+    .add-btn .icon { font-size: 16px; }
+
+    .layer-item {
+      display: flex; align-items: center; gap: 9px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--glass-b);
+      border-radius: 12px; padding: 10px 13px; margin-bottom: 8px;
+      transition: all .2s;
+    }
+    .layer-item:hover { background: rgba(255,255,255,.09); }
+    .layer-item.hidden-layer { opacity: .45; }
+    .layer-type-icon {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .layer-info { flex: 1; min-width: 0; }
+    .layer-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .layer-type { font-size: 11px; color: var(--muted); }
+    .layer-controls { display: flex; gap: 4px; flex-shrink: 0; }
+    .ctrl-btn {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: transparent; border: 1px solid var(--glass-b);
+      color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .2s; font-family: inherit;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .ctrl-btn.edit-btn { color: #a78bfa; border-color: rgba(108,99,255,.3); }
+    .ctrl-btn.edit-btn:hover { background: rgba(108,99,255,.2); }
+    .ctrl-btn.del-btn:hover { background: rgba(255,107,157,.15); color: var(--danger); border-color: rgba(255,107,157,.3); }
+
+    /* Form */
+    .form-group { margin-bottom: 13px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; display: block; }
+    .form-input {
+      width: 100%; padding: 10px 13px;
+      background: rgba(255,255,255,.07); border: 1px solid var(--glass-b);
+      border-radius: 10px; color: #fff; font-size: 13px; font-family: inherit;
+      outline: none; transition: all .2s;
+    }
+    .form-input:focus { border-color: rgba(108,99,255,.6); background: rgba(108,99,255,.09); box-shadow: 0 0 0 3px rgba(108,99,255,.15); }
+    .form-input::placeholder { color: rgba(255,255,255,.25); }
+    textarea.form-input { resize: vertical; min-height: 64px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    input[type="range"] { width: 100%; height: 4px; accent-color: var(--primary); margin-top: 6px; }
+    input[type="color"] { width: 40px; height: 32px; padding: 2px; border-radius: 7px; border: 1px solid var(--glass-b); background: transparent; cursor: pointer; }
+    .color-row { display: flex; align-items: center; gap: 10px; }
+
+    /* QR preview */
+    .qr-wrap { display: flex; justify-content: center; padding: 8px 0; }
+
+    /* Sync status states */
+    .sync-ok     { background:rgba(74,222,128,.08);  color:#4ade80; border:1px solid rgba(74,222,128,.25); }
+    .sync-warn   { background:rgba(255,200,60,.07);  color:rgba(255,200,60,.9); border:1px solid rgba(255,200,60,.25); }
+    .sync-err    { background:rgba(255,107,157,.08); color:var(--danger); border:1px solid rgba(255,107,157,.25); }
+    .sync-ing    { background:rgba(0,212,255,.08);   color:var(--accent); border:1px solid rgba(0,212,255,.25); }
+
+    /* Empty layers */
+    .empty-layers {
+      text-align: center; padding: 20px;
+      color: var(--muted); font-size: 12px;
+      border: 1.5px dashed rgba(255,255,255,.1); border-radius: 12px;
+    }
+
+    /* ── Preview panel ── */
+    .preview-panel {
+      background: rgba(0,0,0,.3); border-left: 1px solid var(--glass-b);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; position: sticky; top: 60px; height: calc(100vh - 60px);
+    }
+    .preview-label { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 14px; }
+    .phone-wrap {
+      width: 210px; height: 400px;
+      background: #080618; border: 2.5px solid rgba(255,255,255,.2);
+      border-radius: 34px; overflow: hidden; position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 0 30px rgba(108,99,255,.08);
+    }
+    .phone-cam {
+      width: 100%; height: 100%;
+      background: linear-gradient(160deg, #1a1040 0%, #0d0820 60%, #151030 100%);
+      position: relative; overflow: hidden;
+    }
+    .phone-notch {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 56px; height: 16px; background: rgba(0,0,0,.85); border-radius: 8px; z-index: 10;
+    }
+    .phone-ar-badge {
+      position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+      background: rgba(108,99,255,.7); border-radius: 20px;
+      padding: 3px 10px; font-size: 9px; font-weight: 700; z-index: 10; white-space: nowrap;
+    }
+    #phone-layers { position: absolute; inset: 0; }
+    #phone-video-preview {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      opacity: 0; transition: opacity .5s; z-index: 2;
+    }
+    #phone-video-preview.show { opacity: 1; }
+
+    /* ── Bottom sheet ── */
+    .sheet-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(6px); display: none;
+    }
+    .sheet-overlay.open { display: block; }
+    .sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 101;
+      background: rgba(14,11,40,.98); backdrop-filter: blur(24px);
+      border-top: 1px solid var(--glass-b); border-radius: 24px 24px 0 0;
+      padding: 18px 22px 40px;
+      transform: translateY(100%);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      max-height: 88vh; overflow-y: auto;
+    }
+    .sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 34px; height: 4px; background: rgba(255,255,255,.2); border-radius: 2px; margin: 0 auto 18px; cursor: pointer; }
+    .sheet-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+    .sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-ghost { flex: 1; padding: 12px; border-radius: 12px; background: var(--glass); border: 1px solid var(--glass-b); color: #fff; font-size: 14px; cursor: pointer; font-family: inherit; }
+    .btn-primary-sm { flex: 1; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: 0 4px 14px rgba(108,99,255,.4); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(18,16,42,.97); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-b); color: #fff;
+      padding: 12px 22px; border-radius: 12px; font-size: 13px;
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 9999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* server status pill */
+    .server-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; padding: 3px 9px; border-radius: 20px;
+      margin-left: auto; cursor: pointer;
+    }
+    .server-status.online  { background: rgba(74,222,128,.12); color: #4ade80; border: 1px solid rgba(74,222,128,.25); }
+    .server-status.offline { background: rgba(255,107,157,.1);  color: var(--danger); border: 1px solid rgba(255,107,157,.2); }
+    .server-status.drive   { background: rgba(0,212,255,.1); color: var(--accent); border: 1px solid rgba(0,212,255,.25); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Drive config section */
+    .drive-config-section {
+      background: rgba(0,212,255,.06); border: 1px solid rgba(0,212,255,.2);
+      border-radius: 16px; padding: 16px 18px;
+    }
+    .drive-config-section.configured {
+      background: rgba(74,222,128,.06); border-color: rgba(74,222,128,.2);
+    }
+    .drive-row { display: flex; align-items: center; gap: 10px; }
+    .drive-icon { font-size: 22px; flex-shrink: 0; }
+    .drive-title { font-size: 13px; font-weight: 600; color: #fff; }
+    .drive-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .drive-input-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+    .drive-input {
+      flex: 1; padding: 9px 12px;
+      background: rgba(255,255,255,.07); border: 1px solid var(--glass-b);
+      border-radius: 10px; color: #fff; font-size: 11px; font-family: inherit;
+      outline: none; transition: all .2s;
+    }
+    .drive-input:focus { border-color: rgba(0,212,255,.5); background: rgba(0,212,255,.07); }
+    .drive-input::placeholder { color: rgba(255,255,255,.2); }
+    .drive-save-btn {
+      padding: 9px 14px; border-radius: 10px;
+      background: rgba(0,212,255,.15); border: 1px solid rgba(0,212,255,.3);
+      color: var(--accent); font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all .2s; white-space: nowrap;
+    }
+    .drive-save-btn:hover { background: rgba(0,212,255,.28); }
+    .drive-clear-btn {
+      padding: 9px 10px; border-radius: 10px;
+      background: transparent; border: 1px solid rgba(255,107,157,.3);
+      color: var(--danger); font-size: 12px; cursor: pointer;
+      font-family: inherit; transition: all .2s;
+    }
+    .drive-clear-btn:hover { background: rgba(255,107,157,.1); }
+    .drive-help-link { font-size: 11px; color: var(--accent); text-decoration: none; margin-top: 8px; display: inline-block; }
+    .drive-help-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="btn-back" onclick="location.href='dashboard.html'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Dashboard
+  </button>
+  <input type="text" id="project-name-input" placeholder="Nome do projeto" />
+  <div class="header-actions">
+    <button class="btn-preview" onclick="openViewer()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Testar AR
+    </button>
+    <button class="btn-save" id="save-btn" onclick="saveProject()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Salvar
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ── Editor ── -->
+  <div class="editor-panel">
+
+    <!-- MÍDIA AR — multi-target -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Alvos AR
+        <span class="badge">MÚLTIPLOS</span>
+        <div class="server-status offline" id="server-pill">
+          <span class="status-dot"></span>
+          <span id="server-label">sem servidor</span>
+        </div>
+      </div>
+
+      <div class="targets-header">
+        <span style="font-size:12px;color:var(--muted)">Cada alvo tem imagem + vídeo independente</span>
+        <button class="btn-add-target" onclick="addTarget()">+ Adicionar alvo</button>
+      </div>
+
+      <div id="targets-list"><!-- renderTargets() preenche aqui --></div>
+
+      <!-- Status barra de prontidão -->
+      <div id="ar-readiness" style="display:none"></div>
+
+      <!-- .mind file upload -->
+      <div class="mind-upload-wrap">
+        <div class="mind-row">
+          <div class="mind-drop" id="mind-drop" onclick="document.getElementById('mind-file-input').click()">
+            <div class="mind-icon" id="mind-icon">🧠</div>
+            <div class="mind-info">
+              <div class="mind-label" id="mind-label">Arquivo de Rastreamento (.mind)</div>
+              <div class="mind-sub" id="mind-sub">Necessário para o AR real funcionar</div>
+            </div>
+          </div>
+          <a class="mind-compiler-btn" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Compilar
+          </a>
+        </div>
+        <input type="file" id="mind-file-input" accept=".mind" style="display:none" onchange="handleMindFile(event)" />
+        <div class="upload-progress" id="mind-progress" style="display:none">
+          <div class="upload-progress-fill" id="mind-progress-fill"></div>
+        </div>
+        <div class="uz-status" id="mind-status"></div>
+
+        <div class="mind-step-tip">
+          <strong>Como gerar o .mind com múltiplas imagens:</strong><br>
+          1. Clique em <strong>"Compilar"</strong> ao lado →<br>
+          2. Envie <strong>todas</strong> as imagens na mesma ordem dos alvos<br>
+          3. Baixe o <code>targets.mind</code> e envie aqui
+        </div>
+      </div>
+    </div>
+
+    <!-- Camadas extras (texto / botão sobre o vídeo) -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Camadas (sobreposições)
+      </div>
+      <div class="add-btns">
+        <button class="add-btn" onclick="addLayer('text')">  <span class="icon">✏️</span> Texto</button>
+        <button class="add-btn" onclick="addLayer('button')"><span class="icon">🔘</span> Botão</button>
+        <button class="add-btn" onclick="addLayer('image')"> <span class="icon">🖼️</span> Imagem extra</button>
+        <button class="add-btn" onclick="addLayer('video')"> <span class="icon">📺</span> Vídeo extra</button>
+      </div>
+      <div id="layers-list"></div>
+    </div>
+
+    <!-- Drive Config -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Armazenamento na Nuvem
+        <span class="badge">OPCIONAL</span>
+      </div>
+      <div class="drive-config-section" id="drive-config-box">
+        <div class="drive-row">
+          <div class="drive-icon">☁️</div>
+          <div>
+            <div class="drive-title" id="drive-title">Google Drive via Apps Script</div>
+            <div class="drive-sub" id="drive-sub">
+              Para compartilhar projetos entre dispositivos, cole abaixo a URL do seu Apps Script.
+              <br>Sem isso, os arquivos ficam apenas neste dispositivo.
+            </div>
+          </div>
+        </div>
+        <div class="drive-input-row">
+          <input type="url" class="drive-input" id="drive-url-input"
+            placeholder="https://script.google.com/macros/s/.../exec" />
+          <button class="drive-save-btn" onclick="saveDriveUrl()">Salvar</button>
+          <button class="drive-clear-btn" id="drive-clear-btn" onclick="clearDriveUrl()" style="display:none" title="Remover Drive">✕</button>
+        </div>
+        <a class="drive-help-link" href="drive/Code.gs" target="_blank">📄 Ver Code.gs para publicar no Apps Script</a>
+      </div>
+    </div>
+
+    <!-- Áudio -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Áudio de Fundo
+      </div>
+      <label class="form-label">URL do áudio (MP3 direto, SoundCloud open, etc.)</label>
+      <input type="url" class="form-input" id="music-url" placeholder="https://..." />
+    </div>
+
+    <!-- Config / QR -->
+    <div class="section">
+      <div class="section-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+        Configurações &amp; QR
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-input" id="project-desc" placeholder="Descreva seu projeto AR..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cor do QR Code</label>
+        <div class="color-row">
+          <input type="color" id="qr-color" value="#6c63ff" oninput="updateQR()" />
+          <span style="font-size:12px;color:var(--muted)" id="qr-color-val">#6c63ff</span>
+        </div>
+      </div>
+      <div class="qr-wrap"><div id="qr-mini"></div></div>
+
+      <!-- Status de sincronização (visível só quando servidor está configurado) -->
+      <div id="sync-status-bar" style="display:none;margin-top:12px;border-radius:12px;padding:10px 14px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap"></div>
+
+      <!-- Botão forçar sync -->
+      <button id="btn-force-sync" onclick="forceSyncForShare()" style="display:none;margin-top:10px;width:100%;padding:11px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--accent));border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(108,99,255,.4);transition:all .2s">
+        ☁️ Sincronizar para compartilhar
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ── Preview ── -->
+  <div class="preview-panel">
+    <div class="preview-label">Preview AR</div>
+    <div class="phone-wrap">
+      <div class="phone-cam">
+        <div class="phone-notch"></div>
+        <div class="phone-ar-badge">AR ATIVO</div>
+        <video id="phone-video-preview" muted loop playsinline></video>
+        <div id="phone-layers"></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;max-width:190px;line-height:1.6">
+      O vídeo AR substitui a imagem gatilho quando escaneada
+    </div>
+  </div>
+</div>
+
+<!-- Bottom sheet: layer editor -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle" onclick="closeSheet()"></div>
+  <div class="sheet-title" id="sheet-title">Editar Camada</div>
+  <div id="sheet-form"></div>
+  <div class="sheet-actions">
+    <button class="btn-ghost" onclick="closeSheet()">Cancelar</button>
+    <button class="btn-primary-sm" onclick="saveLayer()">Salvar camada</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="drive.js"></script>
+<script src="sync.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  const user = JSON.parse(localStorage.getItem('vooar_current_user'));
+  if (!user) location.href = 'index.html';
+
+  const params    = new URLSearchParams(location.search);
+  const projectId = parseInt(params.get('id'));
+  let project     = null;
+  let editingLayerId = null;
+  let serverOnline   = false;
+  let driveOnline    = false;
+
+  // ── Drive config UI ─────────────────────────────────────────────────────────
+  function initDriveUI() {
+    const saved = Drive.getUrl();
+    const input = document.getElementById('drive-url-input');
+    const box   = document.getElementById('drive-config-box');
+    const title = document.getElementById('drive-title');
+    const sub   = document.getElementById('drive-sub');
+    const clear = document.getElementById('drive-clear-btn');
+    if (saved) {
+      input.value = saved;
+      box.classList.add('configured');
+      title.textContent = '✅ Google Drive conectado';
+      sub.textContent = saved.length > 60 ? saved.slice(0, 60) + '…' : saved;
+      clear.style.display = 'block';
+    }
+  }
+
+  function saveDriveUrl() {
+    const val = document.getElementById('drive-url-input').value.trim();
+    if (!val) { toast('⚠️ Cole a URL do Apps Script'); return; }
+    Drive.setUrl(val);
+    toast('💾 URL do Drive salva! Verificando…');
+    checkServer();
+    initDriveUI();
+  }
+
+  function clearDriveUrl() {
+    localStorage.removeItem('vooar_drive_url');
+    document.getElementById('drive-url-input').value = '';
+    document.getElementById('drive-config-box').classList.remove('configured');
+    document.getElementById('drive-title').textContent = 'Google Drive via Apps Script';
+    document.getElementById('drive-sub').textContent = 'Para compartilhar projetos entre dispositivos, cole abaixo a URL do seu Apps Script.\nSem isso, os arquivos ficam apenas neste dispositivo.';
+    document.getElementById('drive-clear-btn').style.display = 'none';
+    driveOnline = false;
+    updateServerPill();
+    toast('🗑️ Drive desconectado');
+  }
+
+  // ── Server / Drive check — delegado ao SyncManager ─────────────────────────
+  async function checkServer() {
+    await SyncManager.checkServer();
+    serverOnline = SyncManager.serverOk;
+    driveOnline  = SyncManager.driveOk;
+    updateServerPill();
+  }
+
+  function updateServerPill() {
+    SyncManager.bindPill(document.getElementById('server-pill'));
+  }
+
+  // Click pill to open Drive config
+  document.getElementById('server-pill').addEventListener('click', () => {
+    document.getElementById('drive-url-input').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('drive-url-input').focus();
+  });
+
+  // ── File upload ─────────────────────────────────────────────────────────────
+  // NOTA: Drive.uploadFile usa base64 → APENAS para imagens pequenas.
+  // Vídeos e .mind SEMPRE usam servidor multipart (XHR) ou só IndexedDB.
+  async function uploadFile(file, progressId, folder) {
+    const isImage = file.type.startsWith('image/');
+    const bar  = document.getElementById(progressId);
+    const fill = document.getElementById(progressId + '-fill');
+    if (bar) bar.style.display = 'block';
+
+    try {
+      // Drive: só para imagens (base64 não escala para vídeo)
+      if (driveOnline && isImage) {
+        const result = await Drive.uploadFile(file, folder, pct => {
+          if (fill) fill.style.width = pct + '%';
+        });
+        if (bar) bar.style.display = 'none';
+        if (fill) fill.style.width = '0%';
+        return result.url;
+      }
+
+      // Servidor local: suporta qualquer arquivo via multipart
+      if (serverOnline) {
+        return await uploadFileToServer(file, progressId);
+      }
+    } catch(e) {
+      console.warn('[VOOAR] Upload error:', e);
+    }
+    if (bar) bar.style.display = 'none';
+    return null;
+  }
+
+  async function uploadFileToServer(file, progressId) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const bar  = document.getElementById(progressId);
+    const fill = document.getElementById(progressId + '-fill');
+    if (bar) bar.style.display = 'block';
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable && fill) fill.style.width = Math.round(e.loaded / e.total * 100) + '%';
+      };
+      xhr.onload = () => {
+        if (bar) bar.style.display = 'none';
+        if (fill) fill.style.width = '0%';
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data.ok ? data.url : null);
+        } catch { resolve(null); }
+      };
+      xhr.onerror = () => { if (bar) bar.style.display = 'none'; resolve(null); };
+      xhr.open('POST', '/api/upload');
+      xhr.send(formData);
+    });
+  }
+
+  // stripLocals disponível via SyncManager.stripLocals()
+  function stripLocals(p) { return SyncManager.stripLocals(p); }
+
+  async function syncProjectToServer() {
+    const ok = await SyncManager.syncProject(user.id, project);
+    updateSyncStatus(ok ? 'ok' : SyncManager.isOnline ? 'warn' : 'offline');
+  }
+
+  // ── Sync status bar ─────────────────────────────────────────────────────────
+  function updateSyncStatus(state) {
+    const bar  = document.getElementById('sync-status-bar');
+    const btn  = document.getElementById('btn-force-sync');
+    if (!bar) return;
+
+    // Só mostra se o servidor está configurado (online ou offline após tentativa)
+    const configured = serverOnline || driveOnline || Drive.isConfigured();
+    if (!configured && state === 'offline') { bar.style.display = 'none'; btn.style.display = 'none'; return; }
+
+    bar.style.display = 'flex';
+
+    if (state === 'ok') {
+      bar.className = 'sync-ok';
+      bar.innerHTML = '✅ Projeto sincronizado com o servidor — pode ser compartilhado em qualquer aparelho.';
+      btn.style.display = 'none';
+    } else if (state === 'ing') {
+      bar.className = 'sync-ing';
+      bar.innerHTML = '⏳ Sincronizando com o servidor...';
+      btn.style.display = 'none';
+    } else if (state === 'offline') {
+      bar.className = 'sync-warn';
+      bar.innerHTML = '⚠️ Servidor offline — projeto salvo apenas neste dispositivo. Não pode ser compartilhado.';
+      btn.style.display = 'block';
+      btn.textContent = '🔄 Tentar sincronizar agora';
+    } else {
+      bar.className = 'sync-err';
+      bar.innerHTML = '❌ Falha ao sincronizar. O QR code pode não funcionar em outros aparelhos.';
+      btn.style.display = 'block';
+      btn.textContent = '☁️ Tentar novamente';
+    }
+  }
+
+  // Força sync explícito (chamado pelo botão "Sincronizar para compartilhar")
+  async function forceSyncForShare() {
+    const btn = document.getElementById('btn-force-sync');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sincronizando...';
+    updateSyncStatus('ing');
+
+    await SyncManager.checkServer();
+    serverOnline = SyncManager.serverOk;
+    driveOnline  = SyncManager.driveOk;
+
+    if (!serverOnline && !driveOnline) {
+      updateSyncStatus('offline');
+      btn.disabled = false;
+      toast('⚠️ Servidor inacessível. Verifique sua conexão.');
+      return;
+    }
+
+    const ok = await SyncManager.syncProject(user.id, project);
+    if (ok) {
+      updateSyncStatus('ok');
+      toast('✅ Projeto sincronizado! QR code pronto para compartilhar.');
+    } else {
+      updateSyncStatus('warn');
+      toast('⚠️ Não foi possível sincronizar agora.');
+    }
+    btn.disabled = false;
+  }
+
+  // ── Local storage helpers ───────────────────────────────────────────────────
+  const getProjects = () => JSON.parse(localStorage.getItem(`vooar_projects_${user.id}`) || '[]');
+  const saveProjects = p => localStorage.setItem(`vooar_projects_${user.id}`, JSON.stringify(p));
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  async function init() {
+    initDriveUI();
+    await checkServer();
+
+    // If server is online, try to load from server first
+    if (serverOnline) {
+      try {
+        const r = await fetch(`/api/projects/${user.id}/${projectId}`);
+        if (r.ok) {
+          project = await r.json();
+          // Sync to localStorage too
+          const list = getProjects();
+          const idx  = list.findIndex(p => p.id === projectId);
+          if (idx >= 0) list[idx] = project; else list.unshift(project);
+          saveProjects(list);
+        }
+      } catch {}
+    }
+
+    if (!project) {
+      const list = getProjects();
+      project = list.find(p => p.id === projectId);
+      if (!project) { location.href = 'dashboard.html'; return; }
+    }
+
+    document.getElementById('project-name-input').value = project.name || '';
+    document.getElementById('project-desc').value        = project.description || '';
+    document.getElementById('music-url').value           = project.music || '';
+    document.getElementById('qr-color').value            = project.qrColor || '#6c63ff';
+    document.getElementById('qr-color-val').textContent  = project.qrColor || '#6c63ff';
+
+    // Backwards compat: migra campo único para array de alvos
+    if (!project.targets) {
+      project.targets = [{
+        id: Date.now(),
+        triggerImage:      project.triggerImage      || null,
+        triggerImageLocal: project.triggerImageLocal || null,
+        triggerAspect:     project.triggerAspect     || null,
+        arVideo:           project.arVideo           || null,
+        arVideoType:       project.arVideoType       || null,
+      }];
+    }
+
+    // Restore .mind file status
+    if (project.mindFile) {
+      const isIdb = project.mindFile.startsWith('indexeddb://');
+      document.getElementById('mind-icon').textContent = '✅';
+      document.getElementById('mind-label').textContent = isIdb ? 'Arquivo .mind (local)' : (project.mindFile.split('/').pop() || project.mindFile);
+      document.getElementById('mind-sub').textContent   = isIdb ? 'Salvo neste dispositivo (IndexedDB)' : project.mindFile;
+      document.getElementById('mind-drop').classList.add('has-file');
+      setStatus('mind', 'ok', isIdb ? '✓ .mind local — AR neste dispositivo' : '✓ .mind no servidor — AR cross-device');
+    }
+
+    renderTargets();
+    renderLayers();
+    renderPreview();
+    updateQR();
+    // Mostra status de sync inicial baseado no estado do servidor
+    if (serverOnline || driveOnline || Drive.isConfigured()) {
+      updateSyncStatus(serverOnline || driveOnline ? 'ok' : 'offline');
+    }
+  }
+
+  // ── Drag & drop ─────────────────────────────────────────────────────────────
+  function setupDrop(zone, handler) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor = ''; handler(e.dataTransfer.files[0]); });
+  }
+  // .mind drag & drop
+  const mindDrop = document.getElementById('mind-drop');
+  mindDrop.addEventListener('dragover', e => { e.preventDefault(); mindDrop.style.borderColor = 'var(--accent)'; });
+  mindDrop.addEventListener('dragleave', () => { mindDrop.style.borderColor = ''; });
+  mindDrop.addEventListener('drop', e => { e.preventDefault(); mindDrop.style.borderColor = ''; handleMindFile({ target: { files: e.dataTransfer.files } }); });
+
+  // ── Targets ───────────────────────────────────────────────────────────────────
+
+  function addTarget() {
+    if (!project.targets) project.targets = [];
+    project.targets.push({
+      id: Date.now(),
+      triggerImage: null, triggerImageLocal: null,
+      triggerAspect: null, arVideo: null, arVideoType: null
+    });
+    renderTargets();
+    autoSave();
+    toast('✅ Alvo adicionado');
+  }
+
+  function removeTarget(id) {
+    if ((project.targets || []).length <= 1) { toast('⚠️ Precisa de ao menos um alvo'); return; }
+    project.targets = project.targets.filter(t => t.id !== id);
+    renderTargets();
+    autoSave();
+    toast('🗑️ Alvo removido');
+  }
+
+  function renderTargets() {
+    const list    = document.getElementById('targets-list');
+    if (!list) return;
+    const targets = project.targets || [];
+
+    list.innerHTML = targets.map((t, i) => {
+      const hasImg    = !!(t.triggerImageLocal || t.triggerImage);
+      const hasVid    = !!t.arVideo;
+      const aspectTxt = t.triggerAspect ? 'prop. ' + t.triggerAspect.toFixed(3) : 'sem imagem';
+      const removeBtn = targets.length > 1
+        ? `<button class="btn-remove-target" onclick="removeTarget(${t.id})" title="Remover alvo">✕</button>`
+        : '';
+      const isServer  = t.triggerImage && (t.triggerImage.startsWith('/uploads') || t.triggerImage.startsWith('http'));
+
+      return `
+      <div class="target-card" id="target-card-${t.id}">
+        <div class="target-card-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="target-index-badge">🎯 Alvo ${i+1}</span>
+            <span class="target-aspect-pill${t.triggerAspect ? ' has-ratio' : ''}" id="aspect-pill-${t.id}">${aspectTxt}</span>
+          </div>
+          ${removeBtn}
+        </div>
+        <div class="media-grid">
+          <div class="media-col">
+            <div class="media-col-label">
+              <span class="step" style="font-size:13px;background:none;width:auto;height:auto">📷</span>
+              Imagem Gatilho
+            </div>
+            <div class="media-col-sub">Imagem física que será escaneada</div>
+            <div class="upload-zone${hasImg ? ' has-media' : ''}" id="trig-zone-${t.id}" onclick="document.getElementById('trig-file-${t.id}').click()">
+              <div class="uz-placeholder">
+                <div class="uz-icon">📷</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>JPG, PNG · até 20 MB</div>
+              </div>
+              <img class="uz-preview" id="trig-img-${t.id}" style="display:${hasImg?'block':'none'}" alt="alvo ${i+1}" />
+              <div class="uz-overlay">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Trocar imagem
+              </div>
+            </div>
+            <input type="file" id="trig-file-${t.id}" accept="image/*" style="display:none" onchange="handleTriggerFileForTarget(event,${t.id})" />
+            <div class="upload-progress" id="trig-prog-${t.id}" style="display:none">
+              <div class="upload-progress-fill" id="trig-prog-fill-${t.id}"></div>
+            </div>
+            <div class="uz-status${hasImg ? ' ok' : ''}" id="trig-status-${t.id}">${hasImg ? (isServer ? '✓ No servidor' : '✓ Local') : ''}</div>
+          </div>
+
+          <div class="media-arrow">
+            <div class="ar-arrow-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+            <div class="ar-label">AR</div>
+          </div>
+
+          <div class="media-col">
+            <div class="media-col-label">
+              <span class="step" style="font-size:13px;background:none;width:auto;height:auto">🎬</span>
+              Vídeo AR
+            </div>
+            <div class="media-col-sub">Cobre a imagem completamente</div>
+            <div class="upload-zone${hasVid ? ' has-media' : ''}" id="vid-zone-${t.id}" onclick="document.getElementById('vid-file-${t.id}').click()">
+              <div class="uz-placeholder">
+                <div class="uz-icon">🎬</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>MP4, MOV · até 500 MB</div>
+              </div>
+              <video class="uz-video-preview" id="vid-preview-${t.id}" muted loop playsinline style="display:none"></video>
+              <div class="uz-overlay">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Trocar vídeo
+              </div>
+            </div>
+            <input type="file" id="vid-file-${t.id}" accept="video/*" style="display:none" onchange="handleVideoFileForTarget(event,${t.id})" />
+            <div class="upload-progress" id="vid-prog-${t.id}" style="display:none">
+              <div class="upload-progress-fill" id="vid-prog-fill-${t.id}"></div>
+            </div>
+            <div class="uz-status${hasVid ? ' ok' : ''}" id="vid-status-${t.id}">${hasVid ? '✓ Vídeo configurado' : ''}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // After render: set image srcs, drag-drop, restore video
+    targets.forEach(t => {
+      // Set trigger image src (avoids huge base64 in template string)
+      if (t.triggerImageLocal || t.triggerImage) {
+        const imgEl = document.getElementById(`trig-img-${t.id}`);
+        if (imgEl) imgEl.src = t.triggerImageLocal || t.triggerImage;
+      }
+      // Drag & drop
+      const trigZone = document.getElementById(`trig-zone-${t.id}`);
+      const vidZone  = document.getElementById(`vid-zone-${t.id}`);
+      if (trigZone) setupDrop(trigZone, f => f && processTriggerForTarget(f, t.id));
+      if (vidZone)  setupDrop(vidZone,  f => f && processVideoForTarget(f, t.id));
+      // Restore video preview
+      if (t.arVideo) {
+        const vidEl = document.getElementById(`vid-preview-${t.id}`);
+        if (!vidEl) return;
+        if (t.arVideo.startsWith('idb://')) {
+          const idbKey = t.arVideo.replace('idb://', '');
+          AssetDB.getBlobUrl('video', idbKey, 'video/mp4').then(blobUrl => {
+            if (blobUrl) { vidEl.src = blobUrl; vidEl.style.display = 'block'; vidEl.play().catch(() => {}); }
+          });
+        } else if (t.arVideoType === 'file' || t.arVideoType === 'direct' ||
+                   (t.arVideo && !t.arVideo.includes('youtube') && !t.arVideo.includes('vimeo'))) {
+          vidEl.src = t.arVideo; vidEl.style.display = 'block'; vidEl.play().catch(() => {});
+        }
+      }
+    });
+
+    updateReadiness();
+  }
+
+  function handleTriggerFileForTarget(e, targetId) { processTriggerForTarget(e.target.files[0], targetId); }
+  function handleVideoFileForTarget(e, targetId)   { processVideoForTarget(e.target.files[0], targetId); }
+
+  async function processTriggerForTarget(file, targetId) {
+    if (!file || !file.type.startsWith('image/')) { toast('⚠️ Arquivo deve ser uma imagem'); return; }
+    const t = (project.targets || []).find(t => t.id === targetId);
+    if (!t) return;
+    setTargetStatus('trig', targetId, 'uploading', '⬆ Salvando imagem...');
+
+    // ① Detecta aspect ratio (height/width) — vídeo vai cobrir a imagem com esta proporção
+    const aspect = await new Promise(res => {
+      const img = new Image();
+      img.onload = () => { res(img.naturalHeight / img.naturalWidth); URL.revokeObjectURL(img.src); };
+      img.src = URL.createObjectURL(file);
+    });
+    t.triggerAspect = aspect;
+    const pill = document.getElementById(`aspect-pill-${targetId}`);
+    if (pill) { pill.textContent = 'prop. ' + aspect.toFixed(3); pill.className = 'target-aspect-pill has-ratio'; }
+
+    // ② IndexedDB cache (offline + CORS-safe)
+    const idbKey  = `${projectId}_${targetId}`;
+    const buf     = await file.arrayBuffer();
+    await AssetDB.store('image', idbKey, buf);
+    const blobUrl = await AssetDB.getBlobUrl('image', idbKey, file.type);
+
+    // ③ Upload servidor/Drive (cross-device)
+    let serverUrl = null;
+    if (driveOnline || serverOnline) {
+      serverUrl = await uploadFile(file, `trig-prog-${targetId}`, 'images');
+    }
+
+    // ④ Base64 local fallback (persiste entre sessões)
+    const b64 = await new Promise(res => {
+      const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsDataURL(file);
+    });
+
+    t.triggerImage      = serverUrl || blobUrl || b64;
+    t.triggerImageLocal = b64;
+
+    // Update UI
+    const zone  = document.getElementById(`trig-zone-${targetId}`);
+    const imgEl = document.getElementById(`trig-img-${targetId}`);
+    if (imgEl) { imgEl.src = blobUrl || b64; imgEl.style.display = 'block'; }
+    zone.classList.add('has-media');
+    setTargetStatus('trig', targetId, 'ok', serverUrl ? (driveOnline ? '✓ No Drive' : '✓ No servidor') : '✓ Local');
+    renderPreview(); autoSave(); updateReadiness();
+  }
+
+  // ── .mind file ──────────────────────────────────────────────────────────────
+  async function handleMindFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.name.endsWith('.mind') && file.type !== 'application/octet-stream') {
+      toast('⚠️ Selecione um arquivo .mind válido'); return;
+    }
+
+    setStatus('mind', 'uploading', '⬆ Salvando .mind localmente…');
+    document.getElementById('mind-drop').classList.add('uploading');
+    document.getElementById('mind-progress').style.display = 'block';
+
+    // ① SEMPRE salva no IndexedDB — garante AR offline e sem CORS
+    try {
+      const buf = await file.arrayBuffer();
+      await MindDB.store(projectId, buf);
+    } catch(e) { console.warn('[VOOAR] IndexedDB store error:', e); }
+
+    document.getElementById('mind-progress-fill').style.width = '30%';
+
+    // ② Se tem Drive ou servidor, faz upload para compartilhar cross-device
+    let serverUrl = null;
+    if (driveOnline || serverOnline) {
+      setStatus('mind', 'uploading', '⬆ Enviando .mind para nuvem…');
+      try {
+        if (driveOnline) {
+          const result = await Drive.uploadFile(file, 'mind', pct => {
+            document.getElementById('mind-progress-fill').style.width = (30 + pct * 0.7) + '%';
+          });
+          serverUrl = result.url;
+        } else {
+          serverUrl = await uploadFileToServer(file, 'mind-progress');
+        }
+      } catch(e) { console.warn('[VOOAR] .mind cloud upload failed:', e); }
+    }
+
+    document.getElementById('mind-progress').style.display = 'none';
+    document.getElementById('mind-progress-fill').style.width = '0%';
+    document.getElementById('mind-drop').classList.remove('uploading');
+
+    // ③ Define project.mindFile: URL na nuvem OU marcador local
+    if (serverUrl) {
+      project.mindFile = serverUrl;
+    } else {
+      // Marcador especial: viewer.html vai buscar no IndexedDB
+      project.mindFile = `indexeddb://${projectId}`;
+    }
+
+    document.getElementById('mind-icon').textContent = '✅';
+    document.getElementById('mind-label').textContent = file.name;
+    const sizeKB = Math.round(file.size / 1024);
+    document.getElementById('mind-sub').textContent = serverUrl
+      ? `${sizeKB} KB · ${serverUrl}`
+      : `${sizeKB} KB · salvo neste dispositivo (IndexedDB)`;
+    document.getElementById('mind-drop').classList.add('has-file');
+
+    const msg = serverUrl
+      ? '✓ .mind na nuvem — AR funciona em qualquer dispositivo!'
+      : '✓ .mind local — AR funciona neste dispositivo';
+    setStatus('mind', 'ok', msg);
+    autoSave(); updateReadiness();
+    toast(serverUrl ? '🎯 .mind enviado! AR cross-device ativo.' : '🎯 .mind salvo! AR local pronto.');
+  }
+
+  async function processVideoForTarget(file, targetId) {
+    if (!file || !file.type.startsWith('video/')) { toast('⚠️ Arquivo deve ser um vídeo'); return; }
+    const t = (project.targets || []).find(t => t.id === targetId);
+    if (!t) return;
+    setTargetStatus('vid', targetId, 'uploading', '⬆ Salvando vídeo localmente...');
+    const zone   = document.getElementById(`vid-zone-${targetId}`);
+    const idbKey = `${projectId}_${targetId}`;
+    zone.classList.add('uploading');
+
+    // ① IndexedDB primeiro — offline + preview imediato
+    let blobUrl = null;
+    try {
+      const buf = await file.arrayBuffer();
+      await AssetDB.store('video', idbKey, buf);
+      blobUrl = await AssetDB.getBlobUrl('video', idbKey, file.type);
+      if (blobUrl) showVideoPreviewForTarget(blobUrl, targetId);
+    } catch(e) { console.warn('[VOOAR] IndexedDB video:', e); }
+
+    // ② Servidor multipart (NUNCA Drive para vídeo — base64 é grande demais)
+    let serverUrl = null;
+    if (serverOnline) {
+      setTargetStatus('vid', targetId, 'uploading', '⬆ Enviando vídeo ao servidor...');
+      serverUrl = await uploadFileToServer(file, `vid-prog-${targetId}`);
+    }
+
+    zone.classList.remove('uploading');
+
+    if (serverUrl) {
+      t.arVideo = serverUrl; t.arVideoType = 'file';
+      showVideoPreviewForTarget(serverUrl, targetId);
+      setTargetStatus('vid', targetId, 'ok', '✓ Vídeo no servidor (cross-device)');
+      toast('✅ Vídeo enviado ao servidor!');
+    } else if (blobUrl) {
+      t.arVideo = `idb://${idbKey}`; t.arVideoType = 'local';
+      setTargetStatus('vid', targetId, 'ok', '✓ Vídeo salvo neste dispositivo');
+      toast('ℹ️ Vídeo salvo localmente.');
+    } else {
+      setTargetStatus('vid', targetId, 'err', '✗ Erro ao salvar vídeo');
+      toast('❌ Erro ao salvar vídeo.');
+    }
+    renderPreview(); autoSave(); updateReadiness();
+  }
+
+  function showVideoPreviewForTarget(src, targetId) {
+    const el   = document.getElementById(`vid-preview-${targetId}`);
+    const zone = document.getElementById(`vid-zone-${targetId}`);
+    if (!el) return;
+    el.src = src; el.style.display = 'block';
+    el.play().catch(() => {});
+    zone.classList.add('has-media');
+    // Phone preview: mostra vídeo do primeiro alvo
+    if (project.targets && project.targets[0]?.id === targetId) {
+      const phoneVid = document.getElementById('phone-video-preview');
+      if (phoneVid && (src.startsWith('/') || src.startsWith('blob') || src.startsWith('http'))) {
+        phoneVid.src = src; phoneVid.play().catch(() => {}); phoneVid.classList.add('show');
+      }
+    }
+  }
+
+  function setTargetStatus(type, targetId, state, msg) {
+    const el = document.getElementById(`${type}-status-${targetId}`);
+    if (!el) return;
+    el.className = 'uz-status ' + state;
+    el.textContent = msg;
+  }
+
+  function updateReadiness() {
+    const bar      = document.getElementById('ar-readiness');
+    if (!bar || !project?.targets) return;
+    const targets  = project.targets;
+    const withImg  = targets.filter(t => t.triggerImage || t.triggerImageLocal).length;
+    const withVid  = targets.filter(t => t.arVideo).length;
+    const hasMind  = !!project.mindFile;
+    const total    = targets.length;
+
+    let msg = '', bg = '', color = '';
+
+    if (withImg === total && withVid === total && hasMind) {
+      msg   = `✅ AR pronto — ${total} alvo${total!==1?'s':''} configurado${total!==1?'s':''}. Teste com "Testar AR".`;
+      bg    = 'rgba(74,222,128,.1)'; color = '#4ade80';
+    } else if (withImg === 0 && withVid === 0) {
+      bar.style.display = 'none'; return;
+    } else {
+      const missing = [];
+      if (withImg < total) missing.push(`${total-withImg} imagem${total-withImg!==1?'ns':''}`);
+      if (withVid < total) missing.push(`${total-withVid} vídeo${total-withVid!==1?'s':''}`);
+      if (!hasMind)        missing.push('arquivo .mind');
+      msg   = `⚙️ Faltam: ${missing.join(', ')}`;
+      bg    = 'rgba(255,200,60,.08)'; color = 'rgba(255,200,60,.9)';
+    }
+
+    bar.style.cssText = `display:flex;align-items:center;gap:8px;margin:10px 0 6px;padding:9px 14px;border-radius:10px;font-size:11px;font-weight:600;background:${bg};color:${color};border:1px solid ${color.replace(')', ',.25)').replace('rgb', 'rgba')};`;
+    bar.textContent = msg;
+  }
+
+  function setStatus(type, state, msg) {
+    const el = document.getElementById(type + '-status');
+    if (!el) return;
+    el.className = 'uz-status ' + state;
+    el.textContent = msg;
+  }
+
+  // ── Layers ───────────────────────────────────────────────────────────────────
+  const typeConfig = {
+    image:  { emoji: '🖼️', label: 'Imagem',  bg: 'rgba(108,99,255,.2)' },
+    video:  { emoji: '📺', label: 'Vídeo',   bg: 'rgba(0,212,255,.2)' },
+    text:   { emoji: '✏️', label: 'Texto',   bg: 'rgba(167,139,250,.2)' },
+    button: { emoji: '🔘', label: 'Botão',   bg: 'rgba(255,107,157,.2)' },
+  };
+
+  function renderLayers() {
+    const list = document.getElementById('layers-list');
+    if (!project.layers.length) {
+      list.innerHTML = `<div class="empty-layers">Nenhuma sobreposição. Adicione texto ou botões sobre o vídeo AR.</div>`;
+      return;
+    }
+    list.innerHTML = project.layers.map(l => {
+      const cfg = typeConfig[l.type] || typeConfig.text;
+      return `<div class="layer-item${l.visible===false?' hidden-layer':''}">
+        <div class="layer-type-icon" style="background:${cfg.bg}">${cfg.emoji}</div>
+        <div class="layer-info">
+          <div class="layer-name">${l.name || cfg.label}</div>
+          <div class="layer-type">${cfg.label} · y=${l.y||50}%</div>
+        </div>
+        <div class="layer-controls">
+          <button class="ctrl-btn" onclick="moveLayer(${l.id},-1)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg></button>
+          <button class="ctrl-btn" onclick="moveLayer(${l.id},1)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="ctrl-btn" onclick="toggleLayer(${l.id})">${l.visible===false ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>
+          <button class="ctrl-btn edit-btn" onclick="editLayer(${l.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg></button>
+          <button class="ctrl-btn del-btn" onclick="deleteLayer(${l.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function addLayer(type) {
+    const cfg = typeConfig[type];
+    const defaults = {
+      image:  { src: null, width: 70, opacity: 1, x: 50, y: 35 },
+      video:  { url: '', width: 80, x: 50, y: 35 },
+      text:   { content: 'Texto aqui', fontSize: 22, color: '#ffffff', fontWeight: 'bold', textAlign: 'center', x: 50, y: 30 },
+      button: { label: 'Clique aqui', url: 'https://', bgColor: '#6c63ff', textColor: '#ffffff', x: 50, y: 75 },
+    };
+    const layer = { id: Date.now(), type, name: `${cfg.label} ${project.layers.length+1}`, visible: true, zIndex: project.layers.length+1, ...defaults[type] };
+    project.layers.push(layer);
+    renderLayers(); renderPreview(); autoSave();
+    editLayer(layer.id);
+  }
+
+  function deleteLayer(id)  { project.layers = project.layers.filter(l => l.id!==id); renderLayers(); renderPreview(); autoSave(); }
+  function toggleLayer(id)  { const l = project.layers.find(l=>l.id===id); if(l) l.visible = l.visible===false; renderLayers(); renderPreview(); autoSave(); }
+  function moveLayer(id, d) {
+    const i = project.layers.findIndex(l=>l.id===id);
+    const j = i+d; if(j<0||j>=project.layers.length) return;
+    [project.layers[i], project.layers[j]] = [project.layers[j], project.layers[i]];
+    renderLayers(); renderPreview(); autoSave();
+  }
+
+  function editLayer(id) {
+    editingLayerId = id;
+    const l = project.layers.find(l=>l.id===id);
+    const cfg = typeConfig[l.type];
+    document.getElementById('sheet-title').innerHTML = `${cfg.emoji} Editar ${cfg.label}`;
+    document.getElementById('sheet-form').innerHTML = buildLayerForm(l);
+    document.getElementById('sheet-overlay').classList.add('open');
+    document.getElementById('sheet').classList.add('open');
+    const imgFile = document.getElementById('layer-img-file');
+    if (imgFile) imgFile.onchange = e => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('layer-img-preview').src = ev.target.result;
+        document.getElementById('layer-img-preview').style.display = 'block';
+        document.getElementById('layer-img-src').value = ev.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    };
+  }
+
+  function buildLayerForm(l) {
+    const posRow = `<div class="form-row">
+      <div class="form-group"><label class="form-label">Nome</label><input class="form-input" id="lf-name" value="${l.name||''}" /></div>
+      <div class="form-group"><label class="form-label">Posição vertical (%)</label><input type="number" class="form-input" id="lf-y" value="${l.y||50}" min="5" max="95" /></div>
+    </div>`;
+    if (l.type==='image') return `${posRow}
+      <div class="form-group"><label class="form-label">Imagem</label>
+        <input type="file" id="layer-img-file" accept="image/*" style="display:none" />
+        <input type="hidden" id="layer-img-src" value="${l.src||''}" />
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="btn-ghost" style="padding:8px 12px;font-size:12px" onclick="document.getElementById('layer-img-file').click()">Escolher arquivo</button>
+          ${l.src?`<img id="layer-img-preview" src="${l.src}" style="height:38px;border-radius:7px" />`:`<img id="layer-img-preview" style="display:none;height:38px;border-radius:7px" />`}
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Largura: <span id="lf-w-val">${l.width||70}</span>%</label><input type="range" id="lf-width" min="10" max="100" value="${l.width||70}" oninput="document.getElementById('lf-w-val').textContent=this.value" /></div>
+      <div class="form-group"><label class="form-label">Opacidade: <span id="lf-op-val">${Math.round((l.opacity||1)*100)}</span>%</label><input type="range" id="lf-opacity" min="10" max="100" value="${Math.round((l.opacity||1)*100)}" oninput="document.getElementById('lf-op-val').textContent=this.value" /></div>`;
+    if (l.type==='video') return `${posRow}
+      <div class="form-group"><label class="form-label">URL do YouTube ou vídeo direto</label><input class="form-input" id="lf-url" value="${l.url||''}" placeholder="https://youtube.com/watch?v=..." /></div>
+      <div class="form-group"><label class="form-label">Largura: <span id="lf-w-val">${l.width||80}</span>%</label><input type="range" id="lf-width" min="20" max="100" value="${l.width||80}" oninput="document.getElementById('lf-w-val').textContent=this.value" /></div>`;
+    if (l.type==='text') return `${posRow}
+      <div class="form-group"><label class="form-label">Conteúdo</label><textarea class="form-input" id="lf-content" rows="3">${l.content||''}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Tamanho: <span id="lf-fs-val">${l.fontSize||22}</span>px</label><input type="range" id="lf-fontsize" min="10" max="60" value="${l.fontSize||22}" oninput="document.getElementById('lf-fs-val').textContent=this.value" /></div>
+        <div class="form-group"><label class="form-label">Peso</label><select class="form-input" id="lf-weight"><option value="400" ${l.fontWeight==='400'?'selected':''}>Normal</option><option value="600" ${l.fontWeight==='600'?'selected':''}>Semi-bold</option><option value="bold" ${(l.fontWeight==='bold'||!l.fontWeight)?'selected':''}>Bold</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Cor</label><div class="color-row"><input type="color" id="lf-color" value="${l.color||'#ffffff'}" /></div></div>
+      <div class="form-group"><label class="form-label">Alinhamento</label><select class="form-input" id="lf-align"><option value="left" ${l.textAlign==='left'?'selected':''}>Esquerda</option><option value="center" ${(!l.textAlign||l.textAlign==='center')?'selected':''}>Centro</option><option value="right" ${l.textAlign==='right'?'selected':''}>Direita</option></select></div>`;
+    if (l.type==='button') return `${posRow}
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Texto do botão</label><input class="form-input" id="lf-label" value="${l.label||''}" /></div>
+        <div class="form-group"><label class="form-label">URL de destino</label><input class="form-input" id="lf-url" value="${l.url||''}" placeholder="https://..." /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Cor de fundo</label><div class="color-row"><input type="color" id="lf-bg" value="${l.bgColor||'#6c63ff'}" /></div></div>
+        <div class="form-group"><label class="form-label">Cor do texto</label><div class="color-row"><input type="color" id="lf-tc" value="${l.textColor||'#ffffff'}" /></div></div>
+      </div>`;
+    return '';
+  }
+
+  function saveLayer() {
+    const l = project.layers.find(l=>l.id===editingLayerId);
+    if (!l) return;
+    l.name = document.getElementById('lf-name')?.value || l.name;
+    l.y    = parseInt(document.getElementById('lf-y')?.value) || l.y;
+    if (l.type==='image')  { const s=document.getElementById('layer-img-src')?.value; if(s) l.src=s; l.width=parseInt(document.getElementById('lf-width')?.value)||l.width; l.opacity=(parseInt(document.getElementById('lf-opacity')?.value)||100)/100; }
+    if (l.type==='video')  { l.url=document.getElementById('lf-url')?.value||''; l.width=parseInt(document.getElementById('lf-width')?.value)||l.width; }
+    if (l.type==='text')   { l.content=document.getElementById('lf-content')?.value||''; l.fontSize=parseInt(document.getElementById('lf-fontsize')?.value)||l.fontSize; l.fontWeight=document.getElementById('lf-weight')?.value||l.fontWeight; l.color=document.getElementById('lf-color')?.value||l.color; l.textAlign=document.getElementById('lf-align')?.value||l.textAlign; }
+    if (l.type==='button') { l.label=document.getElementById('lf-label')?.value||''; l.url=document.getElementById('lf-url')?.value||''; l.bgColor=document.getElementById('lf-bg')?.value||l.bgColor; l.textColor=document.getElementById('lf-tc')?.value||l.textColor; }
+    closeSheet(); renderLayers(); renderPreview(); autoSave();
+    toast('✅ Camada salva');
+  }
+
+  function closeSheet() {
+    document.getElementById('sheet-overlay').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
+  }
+
+  // ── Preview rendering ────────────────────────────────────────────────────────
+  function renderPreview() {
+    const screen = document.getElementById('phone-layers');
+    screen.innerHTML = '';
+    const visible = (project.layers||[]).filter(l=>l.visible!==false);
+    visible.sort((a,b)=>(a.zIndex||0)-(b.zIndex||0));
+    visible.forEach(l => {
+      const el = document.createElement('div');
+      el.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);top:${l.y||50}%;text-align:center;z-index:${(l.zIndex||1)+3};`;
+      if (l.type==='image'&&l.src)   el.innerHTML = `<img src="${l.src}" style="width:${l.width||70}%;opacity:${l.opacity||1};border-radius:6px;max-height:100px;object-fit:contain" />`;
+      else if (l.type==='video')     el.innerHTML = `<div style="background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:8px 12px;font-size:9px;color:rgba(255,255,255,.7)">📺 ${l.url?'Vídeo':'URL não definida'}</div>`;
+      else if (l.type==='text')      el.innerHTML = `<div style="font-size:${Math.round((l.fontSize||22)*.52)}px;font-weight:${l.fontWeight||'bold'};color:${l.color||'#fff'};text-align:${l.textAlign||'center'};text-shadow:0 2px 8px rgba(0,0,0,.9);padding:0 8px;line-height:1.3">${l.content||''}</div>`;
+      else if (l.type==='button')    el.innerHTML = `<div style="background:${l.bgColor||'#6c63ff'};color:${l.textColor||'#fff'};border-radius:16px;padding:5px 12px;font-size:9px;font-weight:700;display:inline-block;box-shadow:0 4px 10px rgba(0,0,0,.4)">${l.label||'Botão'}</div>`;
+      screen.appendChild(el);
+    });
+  }
+
+  // ── QR ────────────────────────────────────────────────────────────────────────
+  function updateQR() {
+    const color = document.getElementById('qr-color').value;
+    document.getElementById('qr-color-val').textContent = color;
+    if (project) project.qrColor = color;
+    const wrap = document.getElementById('qr-mini');
+    wrap.innerHTML = '';
+    const url = `${location.origin}${location.pathname.replace('editor.html','viewer.html')}?uid=${user.id}&id=${projectId}`;
+    new QRCode(wrap, { text: url, width: 96, height: 96, colorDark: color, colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+    autoSave();
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
+  async function saveProject() {
+    project.name        = document.getElementById('project-name-input').value || 'Sem nome';
+    project.description = document.getElementById('project-desc').value;
+    project.music       = document.getElementById('music-url').value;
+    project.qrColor     = document.getElementById('qr-color').value;
+    project.updatedAt   = new Date().toISOString();
+    // Backwards compat: primeiro alvo nos campos raiz
+    if (project.targets && project.targets.length > 0) {
+      const f = project.targets[0];
+      project.triggerImage      = f.triggerImage;
+      project.triggerImageLocal = f.triggerImageLocal;
+      project.triggerAspect     = f.triggerAspect;
+      project.arVideo           = f.arVideo;
+      project.arVideoType       = f.arVideoType;
+    }
+
+    // Save to localStorage
+    const list = getProjects();
+    const idx  = list.findIndex(p => p.id === projectId);
+    if (idx>=0) list[idx] = project; else list.unshift(project);
+    saveProjects(list);
+
+    // Sync to server
+    await syncProjectToServer();
+
+    const btn = document.getElementById('save-btn');
+    btn.innerHTML = '✓ Salvo'; btn.style.background = 'linear-gradient(135deg,#4ade80,#22c55e)';
+    setTimeout(() => {
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar`;
+      btn.style.background = '';
+    }, 2000);
+    const where = driveOnline ? ' no Drive' : serverOnline ? ' no servidor' : ' localmente';
+    toast('💾 Projeto salvo' + where);
+  }
+
+  let autoSaveTimer = null;
+  function autoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      project.name        = document.getElementById('project-name-input').value || project.name;
+      project.description = document.getElementById('project-desc').value;
+      project.music       = document.getElementById('music-url').value;
+      project.updatedAt   = new Date().toISOString();
+      const list = getProjects();
+      const idx  = list.findIndex(p => p.id === projectId);
+      if (idx>=0) list[idx] = project;
+      saveProjects(list);
+      syncProjectToServer();
+    }, 1200);
+  }
+
+  function openViewer() {
+    saveProject();
+    window.open(`viewer.html?uid=${user.id}&id=${projectId}`, '_blank');
+  }
+
+  function toast(msg, ms=2800) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  document.getElementById('project-name-input').addEventListener('input', autoSave);
+  document.getElementById('project-desc').addEventListener('input', autoSave);
+  document.getElementById('music-url').addEventListener('input', autoSave);
+
+  init();
+</script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>

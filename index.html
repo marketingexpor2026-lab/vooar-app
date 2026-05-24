@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VOOAR" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>VOOAR — Realidade Aumentada</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .stars {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.6), transparent),
+        radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,.5), transparent),
+        radial-gradient(2px 2px at 50% 60%, rgba(255,255,255,.4), transparent),
+        radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,.6), transparent),
+        radial-gradient(1px 1px at 90% 70%, rgba(255,255,255,.4), transparent),
+        radial-gradient(2px 2px at 35% 90%, rgba(255,255,255,.3), transparent),
+        radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,.5), transparent),
+        radial-gradient(1px 1px at 75% 50%, rgba(255,255,255,.3), transparent);
+    }
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); opacity: .25; pointer-events: none; z-index: 0;
+      animation: float 8s ease-in-out infinite;
+    }
+    .orb1 { width: 400px; height: 400px; background: #6c63ff; top: -100px; left: -100px; animation-delay: 0s; }
+    .orb2 { width: 300px; height: 300px; background: #00d4ff; bottom: -50px; right: -50px; animation-delay: 3s; }
+    .orb3 { width: 200px; height: 200px; background: #ff6b9d; top: 50%; left: 50%; animation-delay: 6s; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-30px) scale(1.05); }
+    }
+    .card {
+      position: relative; z-index: 10;
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 28px;
+      padding: 48px 44px;
+      width: 420px;
+      box-shadow: 0 32px 64px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+    .logo-wrap { text-align: center; margin-bottom: 36px; }
+    .logo-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      border-radius: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(108,99,255,.5);
+    }
+    .logo-icon svg { width: 42px; height: 42px; }
+    .logo-title {
+      font-size: 32px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #ffffff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-sub { color: rgba(255,255,255,.5); font-size: 13px; margin-top: 4px; }
+    .tabs {
+      display: flex; gap: 4px;
+      background: rgba(255,255,255,.06);
+      border-radius: 12px; padding: 4px;
+      margin-bottom: 32px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px; border: none; background: transparent;
+      color: rgba(255,255,255,.5); font-size: 14px; font-weight: 500;
+      border-radius: 9px; cursor: pointer; transition: all .25s;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #6c63ff, #8b84ff);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(108,99,255,.4);
+    }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; color: rgba(255,255,255,.7); font-size: 13px; font-weight: 500; margin-bottom: 7px; }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; padding: 13px 16px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      color: #fff; font-size: 14px; font-family: inherit;
+      outline: none; transition: all .25s;
+    }
+    input::placeholder { color: rgba(255,255,255,.3); }
+    input:focus {
+      border-color: rgba(108,99,255,.7);
+      background: rgba(108,99,255,.1);
+      box-shadow: 0 0 0 3px rgba(108,99,255,.2);
+    }
+    .btn-primary {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      border: none; border-radius: 12px;
+      color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 8px;
+      transition: all .25s;
+      box-shadow: 0 6px 20px rgba(108,99,255,.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(108,99,255,.5); }
+    .btn-primary:active { transform: translateY(0); }
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      color: rgba(255,255,255,.3); font-size: 12px; margin: 24px 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.1);
+    }
+    .btn-social {
+      width: 100%; padding: 13px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      color: rgba(255,255,255,.8); font-size: 14px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: all .25s; margin-bottom: 10px;
+    }
+    .btn-social:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: rgba(30,30,40,.95); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,.1);
+      color: #fff; padding: 14px 24px; border-radius: 12px;
+      font-size: 14px; transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 9999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    @media (max-width: 480px) {
+      .card { width: 100%; min-height: 100vh; border-radius: 0; padding: 48px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+
+  <div class="card">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 4L38 14V30L22 40L6 30V14L22 4Z" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M22 4V40M6 14L38 14M6 30L38 30" stroke="white" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <circle cx="22" cy="22" r="5" fill="white" opacity=".9"/>
+          <path d="M14 8L22 4L30 8" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-title">VOOAR</div>
+      <div class="logo-sub">Realidade Aumentada para seus projetos</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Entrar</button>
+      <button class="tab-btn" onclick="switchTab('signup')">Criar conta</button>
+    </div>
+
+    <div class="panel active" id="panel-login">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" id="btn-login" onclick="doLogin()">Entrar no VOOAR</button>
+      <div class="divider">ou continue com</div>
+      <button class="btn-social" onclick="demoLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="currentColor"/></svg>
+        Entrar como Visitante (demo)
+      </button>
+    </div>
+
+    <div class="panel" id="panel-signup">
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" id="signup-name" placeholder="Seu nome" />
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="signup-email" placeholder="seu@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="signup-password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <button class="btn-primary" id="btn-signup" onclick="doSignup()">Criar minha conta</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='login'&&i===0)||(tab==='signup'&&i===1)));
+      document.getElementById('panel-login').classList.toggle('active', tab==='login');
+      document.getElementById('panel-signup').classList.toggle('active', tab==='signup');
+    }
+    function showToast(msg, duration=3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), duration);
+    }
+    function setBtnLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.disabled = loading;
+      btn.style.opacity = loading ? '.6' : '1';
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const pass  = document.getElementById('login-password').value;
+      if (!email || !pass) { showToast('⚠️ Preencha e-mail e senha'); return; }
+
+      setBtnLoading('btn-login', true);
+
+      // ① Tenta servidor primeiro (funciona em qualquer dispositivo)
+      try {
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (r.ok) {
+          const { user } = await r.json();
+          // Salva localmente para próximo acesso offline
+          _saveUserLocally(user, pass);
+          // Sincroniza projetos do servidor para localStorage
+          await _syncProjectsFromServer(user.id);
+          showToast('✅ Bem-vindo, ' + user.name + '!');
+          setTimeout(() => window.location.href = 'dashboard.html', 900);
+          return;
+        }
+        if (r.status === 401) {
+          setBtnLoading('btn-login', false);
+          showToast('❌ E-mail ou senha incorretos');
+          return;
+        }
+      } catch (e) { /* servidor offline, tenta local */ }
+
+      // ② Fallback: localStorage (modo offline)
+      const users = JSON.parse(localStorage.getItem('vooar_users') || '[]');
+      const user  = users.find(u => u.email === email && u.password === pass);
+      if (user) {
+        localStorage.setItem('vooar_current_user', JSON.stringify({ ...user, password: undefined }));
+        showToast('✅ Bem-vindo, ' + user.name + '! (modo offline)');
+        setTimeout(() => window.location.href = 'dashboard.html', 900);
+      } else {
+        showToast('❌ E-mail ou senha incorretos');
+      }
+      setBtnLoading('btn-login', false);
+    }
+
+    async function doSignup() {
+      const name  = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const pass  = document.getElementById('signup-password').value;
+      if (!name || !email || !pass) { showToast('⚠️ Preencha todos os campos'); return; }
+      if (pass.length < 6) { showToast('⚠️ Senha deve ter ao menos 6 caracteres'); return; }
+
+      setBtnLoading('btn-signup', true);
+
+      // ① Tenta cadastrar no servidor
+      try {
+        const r = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password: pass }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const data = await r.json();
+        if (r.ok) {
+          _saveUserLocally(data.user, pass);
+          showToast('🎉 Conta criada! Redirecionando...');
+          setTimeout(() => window.location.href = 'dashboard.html', 1000);
+          return;
+        }
+        if (r.status === 409) {
+          setBtnLoading('btn-signup', false);
+          showToast('⚠️ E-mail já cadastrado');
+          return;
+        }
+        if (data.error) { setBtnLoading('btn-signup', false); showToast('⚠️ ' + data.error); return; }
+      } catch (e) { /* servidor offline */ }
+
+      // ② Fallback offline
+      const users = JSON.parse(localStorage.getItem('vooar_users') || '[]');
+      if (users.find(u => u.email === email)) { setBtnLoading('btn-signup', false); showToast('⚠️ E-mail já cadastrado'); return; }
+      const user = { id: Date.now(), name, email, password: pass, avatar: null, plan: 'Free', createdAt: new Date().toISOString() };
+      users.push(user);
+      localStorage.setItem('vooar_users', JSON.stringify(users));
+      _saveUserLocally(user, pass);
+      // Tenta salvar no servidor em background
+      fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user) }).catch(() => {});
+      showToast('🎉 Conta criada localmente! Redirecionando...');
+      setTimeout(() => window.location.href = 'dashboard.html', 1000);
+      setBtnLoading('btn-signup', false);
+    }
+
+    function _saveUserLocally(user, pass) {
+      // Salva sem senha na sessão corrente
+      localStorage.setItem('vooar_current_user', JSON.stringify({ ...user, password: undefined }));
+      // Mantém cópia com senha para login offline
+      const users = JSON.parse(localStorage.getItem('vooar_users') || '[]');
+      const idx = users.findIndex(u => u.id === user.id || u.email === user.email);
+      const full = { ...user, password: pass };
+      if (idx >= 0) users[idx] = full; else users.push(full);
+      localStorage.setItem('vooar_users', JSON.stringify(users));
+    }
+
+    async function _syncProjectsFromServer(uid) {
+      try {
+        const r = await fetch(`/api/projects/${uid}`, { signal: AbortSignal.timeout(4000) });
+        if (!r.ok) return;
+        const serverProjects = await r.json();
+        if (!serverProjects.length) return;
+        const localProjects = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
+        // Merge: servidor ganha, mas preserva imagens locais (base64) que o servidor não tem
+        const merged = serverProjects.map(sp => {
+          const lp = localProjects.find(p => p.id === sp.id);
+          if (!lp) return sp;
+          return {
+            ...sp,
+            triggerImageLocal: lp.triggerImageLocal || sp.triggerImageLocal,
+            // Preserva triggerImageLocal de cada alvo
+            targets: (sp.targets || []).map((t, i) => {
+              const lt = (lp.targets || [])[i];
+              return lt ? { ...t, triggerImageLocal: lt.triggerImageLocal || t.triggerImageLocal } : t;
+            }),
+          };
+        });
+        // Mantém projetos criados offline que ainda não estão no servidor
+        localProjects.forEach(lp => {
+          if (!merged.find(m => m.id === lp.id)) merged.unshift(lp);
+        });
+        merged.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(merged));
+      } catch {}
+    }
+    function demoLogin() {
+      const user = { id: 1, name: 'Visitante', email: 'demo@vooar.app', password: 'demo', avatar: null, plan: 'Standard', createdAt: new Date().toISOString() };
+      localStorage.setItem('vooar_current_user', JSON.stringify(user));
+      const key = 'vooar_projects_1';
+      if (!localStorage.getItem(key)) {
+        const demo = [{
+          id: 9999, name: 'Projeto Demo', description: 'Exemplo de projeto AR com texto e botão',
+          triggerImage: null, triggerName: 'demo_trigger',
+          layers: [
+            { id: 1, type: 'text', name: 'Título', visible: true, content: 'Bem-vindo ao VOOAR!', fontSize: 28, color: '#ffffff', fontWeight: 'bold', textAlign: 'center', x: 50, y: 20, zIndex: 1 },
+            { id: 2, type: 'text', name: 'Subtítulo', visible: true, content: 'Experiência em Realidade Aumentada', fontSize: 14, color: 'rgba(255,255,255,.7)', fontWeight: '400', textAlign: 'center', x: 50, y: 32, zIndex: 2 },
+            { id: 3, type: 'button', name: 'Saiba mais', visible: true, label: 'Saiba mais', url: 'https://vooar.app', bgColor: '#6c63ff', textColor: '#ffffff', x: 50, y: 75, zIndex: 3 }
+          ],
+          music: null, qrColor: '#6c63ff',
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          views: 42
+        }];
+        localStorage.setItem(key, JSON.stringify(demo));
+      }
+      window.location.href = 'dashboard.html';
+    }
+    window.addEventListener('load', () => {
+      if (localStorage.getItem('vooar_current_user')) window.location.href = 'dashboard.html';
+    });
+    // Enter key support
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const activePanel = document.querySelector('.panel.active');
+        if (activePanel.id === 'panel-login') doLogin();
+        else doSignup();
+      }
+    });
+  </script>
+  <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>

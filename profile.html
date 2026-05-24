@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VOOAR" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Perfil — VOOAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #6c63ff; --accent: #00d4ff; --danger: #ff6b9d;
+      --glass: rgba(255,255,255,.07); --glass-b: rgba(255,255,255,.14);
+      --muted: rgba(255,255,255,.5); --r: 16px;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      min-height: 100vh; color: #fff;
+    }
+    .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: .12; pointer-events: none; z-index: 0; }
+    .orb1 { width: 400px; height: 400px; background: #6c63ff; top: -100px; right: -100px; }
+    .orb2 { width: 300px; height: 300px; background: #ff6b9d; bottom: -80px; left: -80px; }
+
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      height: 60px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(15,12,41,.85); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-b);
+    }
+    .nav-logo {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .btn-nav-back {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 10px; padding: 7px 14px;
+      color: var(--muted); font-size: 13px; cursor: pointer;
+      transition: all .2s; font-family: inherit; text-decoration: none;
+    }
+    .btn-nav-back:hover { color: #fff; background: rgba(255,255,255,.12); }
+
+    /* Main */
+    main {
+      position: relative; z-index: 1;
+      max-width: 620px; margin: 0 auto;
+      padding: 84px 24px 60px;
+    }
+
+    /* Avatar hero */
+    .profile-hero {
+      text-align: center; margin-bottom: 36px;
+    }
+    .avatar-wrap { position: relative; display: inline-block; margin-bottom: 14px; }
+    .avatar-circle {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; font-weight: 800;
+      box-shadow: 0 8px 32px rgba(108,99,255,.5);
+      cursor: pointer; transition: transform .2s;
+      overflow: hidden;
+    }
+    .avatar-circle:hover { transform: scale(1.05); }
+    .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-edit-badge {
+      position: absolute; bottom: 2px; right: 2px;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--primary); border: 2px solid #0f0c29;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .profile-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .profile-email { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    .plan-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .plan-free    { background: rgba(255,255,255,.08); border: 1px solid var(--glass-b); color: var(--muted); }
+    .plan-standard{ background: rgba(0,212,255,.12); border: 1px solid rgba(0,212,255,.3); color: var(--accent); }
+    .plan-pro     { background: rgba(108,99,255,.18); border: 1px solid rgba(108,99,255,.4); color: #a78bfa; }
+
+    /* Sections */
+    .section {
+      background: var(--glass); border: 1px solid var(--glass-b);
+      border-radius: 20px; overflow: hidden; margin-bottom: 14px;
+    }
+    .section-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--glass-b);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-header h3 { font-size: 14px; font-weight: 600; }
+    .section-header svg { opacity: .5; flex-shrink: 0; }
+    .section-body { padding: 20px 22px; }
+
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 7px; }
+    .form-input {
+      width: 100%; padding: 11px 14px;
+      background: rgba(255,255,255,.07); border: 1px solid var(--glass-b);
+      border-radius: 11px; color: #fff; font-size: 14px; font-family: inherit;
+      outline: none; transition: all .2s;
+    }
+    .form-input:focus { border-color: rgba(108,99,255,.6); background: rgba(108,99,255,.09); box-shadow: 0 0 0 3px rgba(108,99,255,.15); }
+    .form-input::placeholder { color: rgba(255,255,255,.2); }
+    .form-input:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Buttons */
+    .btn-primary {
+      padding: 11px 22px; border: none; border-radius: 11px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 14px rgba(108,99,255,.35);
+      transition: all .2s;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.5); }
+    .btn-ghost {
+      padding: 11px 22px; border-radius: 11px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      color: #fff; font-size: 14px; cursor: pointer; font-family: inherit;
+      transition: background .2s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.12); }
+    .btn-danger {
+      padding: 11px 22px; border-radius: 11px;
+      background: rgba(255,107,157,.12); border: 1px solid rgba(255,107,157,.3);
+      color: var(--danger); font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all .2s;
+      width: 100%;
+    }
+    .btn-danger:hover { background: rgba(255,107,157,.25); }
+    .btn-logout {
+      padding: 11px 22px; border-radius: 11px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--glass-b);
+      color: var(--muted); font-size: 14px;
+      cursor: pointer; font-family: inherit; transition: all .2s;
+      width: 100%;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+    .btn-row { display: flex; gap: 10px; }
+
+    /* Stats row */
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .mini-stat {
+      background: rgba(255,255,255,.05); border: 1px solid var(--glass-b);
+      border-radius: 12px; padding: 14px; text-align: center;
+    }
+    .mini-stat-val { font-size: 22px; font-weight: 700; }
+    .mini-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* Plans */
+    .plans-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .plan-card {
+      border-radius: 14px; padding: 16px;
+      border: 1.5px solid var(--glass-b);
+      background: rgba(255,255,255,.04);
+      text-align: center; transition: all .2s; cursor: default;
+    }
+    .plan-card.current { border-color: var(--primary); background: rgba(108,99,255,.12); }
+    .plan-card-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .plan-card-price { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .plan-card-features { font-size: 11px; color: var(--muted); line-height: 1.7; }
+    .plan-current-tag {
+      display: inline-block; background: var(--primary);
+      border-radius: 8px; padding: 2px 8px; font-size: 10px; font-weight: 600;
+      margin-top: 8px;
+    }
+
+    /* Danger zone */
+    .danger-zone { border-color: rgba(255,107,157,.2); }
+    .danger-zone .section-header { border-bottom-color: rgba(255,107,157,.15); }
+    .danger-zone .section-header h3 { color: var(--danger); }
+
+    /* Confirm overlay */
+    .overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: rgba(18,15,45,.97); border: 1px solid var(--glass-b);
+      border-radius: 22px; padding: 32px; width: 100%; max-width: 360px;
+    }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .modal p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-cancel {
+      flex: 1; padding: 12px; border-radius: 12px;
+      background: var(--glass); border: 1px solid var(--glass-b);
+      color: #fff; font-size: 14px; cursor: pointer; font-family: inherit;
+    }
+    .btn-del {
+      flex: 1; padding: 12px; border-radius: 12px;
+      background: rgba(255,107,157,.15); border: 1px solid rgba(255,107,157,.3);
+      color: var(--danger); font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all .2s;
+    }
+    .btn-del:hover { background: rgba(255,107,157,.28); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(20,18,45,.96); backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-b); color: #fff;
+      padding: 13px 24px; border-radius: 12px; font-size: 14px;
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 9999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 520px) {
+      .plans-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .btn-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<nav>
+  <a class="nav-logo" href="dashboard.html">VOOAR</a>
+  <a class="btn-nav-back" href="dashboard.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Dashboard
+  </a>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <div class="profile-hero">
+    <div class="avatar-wrap">
+      <div class="avatar-circle" id="avatar-circle" onclick="document.getElementById('avatar-file').click()">
+        <span id="avatar-initials">?</span>
+      </div>
+      <div class="avatar-edit-badge" onclick="document.getElementById('avatar-file').click()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+      </div>
+    </div>
+    <input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="handleAvatar(event)" />
+    <div class="profile-name" id="hero-name">Usuário</div>
+    <div class="profile-email" id="hero-email">email@email.com</div>
+    <div id="plan-badge-wrap"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="section" style="margin-bottom:14px">
+    <div class="section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <h3>Estatísticas</h3>
+    </div>
+    <div class="section-body">
+      <div class="stats-row">
+        <div class="mini-stat"><div class="mini-stat-val" id="st-projects">0</div><div class="mini-stat-lbl">Projetos</div></div>
+        <div class="mini-stat"><div class="mini-stat-val" id="st-views">0</div><div class="mini-stat-lbl">Visualizações</div></div>
+        <div class="mini-stat"><div class="mini-stat-val" id="st-layers">0</div><div class="mini-stat-lbl">Camadas</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit profile -->
+  <div class="section">
+    <div class="section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <h3>Editar Perfil</h3>
+    </div>
+    <div class="section-body">
+      <div class="form-group">
+        <label class="form-label">Nome completo</label>
+        <input class="form-input" type="text" id="edit-name" placeholder="Seu nome" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-mail</label>
+        <input class="form-input" type="email" id="edit-email" placeholder="seu@email.com" disabled />
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">E-mail não pode ser alterado</div>
+      </div>
+      <button class="btn-primary" onclick="saveProfile()">Salvar alterações</button>
+    </div>
+  </div>
+
+  <!-- Change password -->
+  <div class="section">
+    <div class="section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <h3>Alterar Senha</h3>
+    </div>
+    <div class="section-body">
+      <div class="form-group">
+        <label class="form-label">Senha atual</label>
+        <input class="form-input" type="password" id="pass-current" placeholder="••••••••" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nova senha</label>
+        <input class="form-input" type="password" id="pass-new" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar nova senha</label>
+        <input class="form-input" type="password" id="pass-confirm" placeholder="Repita a nova senha" />
+      </div>
+      <button class="btn-primary" onclick="changePassword()">Alterar senha</button>
+    </div>
+  </div>
+
+  <!-- Plan -->
+  <div class="section">
+    <div class="section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <h3>Plano</h3>
+    </div>
+    <div class="section-body">
+      <div class="plans-grid">
+        <div class="plan-card" id="plan-free">
+          <div class="plan-card-name">Free</div>
+          <div class="plan-card-price">Grátis</div>
+          <div class="plan-card-features">3 projetos<br>5 camadas/projeto<br>Marca d'água</div>
+        </div>
+        <div class="plan-card" id="plan-standard">
+          <div class="plan-card-name">Standard</div>
+          <div class="plan-card-price">R$ 29/mês</div>
+          <div class="plan-card-features">15 projetos<br>20 camadas/projeto<br>Sem marca d'água</div>
+        </div>
+        <div class="plan-card" id="plan-pro">
+          <div class="plan-card-name">Pro</div>
+          <div class="plan-card-price">R$ 79/mês</div>
+          <div class="plan-card-features">Ilimitado<br>Camadas ilimitadas<br>Analytics + API</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="section danger-zone">
+    <div class="section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff6b9d" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <h3>Zona de Perigo</h3>
+    </div>
+    <div class="section-body" style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn-logout" onclick="logout()">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Sair da conta
+        </div>
+      </button>
+      <button class="btn-danger" onclick="document.getElementById('del-modal').classList.add('open')">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          Excluir minha conta
+        </div>
+      </button>
+    </div>
+  </div>
+</main>
+
+<!-- Delete account modal -->
+<div class="overlay" id="del-modal">
+  <div class="modal">
+    <h3>Excluir conta?</h3>
+    <p>Esta ação é <strong>irreversível</strong>. Todos os seus projetos, camadas e dados serão apagados permanentemente.</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="document.getElementById('del-modal').classList.remove('open')">Cancelar</button>
+      <button class="btn-del" onclick="deleteAccount()">Excluir conta</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const user = JSON.parse(localStorage.getItem('vooar_current_user'));
+  if (!user) location.href = 'index.html';
+
+  const getUsers    = () => JSON.parse(localStorage.getItem('vooar_users') || '[]');
+  const saveUsers   = u => localStorage.setItem('vooar_users', JSON.stringify(u));
+  const getProjects = () => JSON.parse(localStorage.getItem(`vooar_projects_${user.id}`) || '[]');
+
+  function init() {
+    const initials = user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    document.getElementById('avatar-initials').textContent = initials;
+    if (user.avatar) {
+      document.getElementById('avatar-circle').innerHTML = `<img src="${user.avatar}" alt="avatar" />`;
+    }
+    document.getElementById('hero-name').textContent  = user.name;
+    document.getElementById('hero-email').textContent = user.email;
+    document.getElementById('edit-name').value  = user.name;
+    document.getElementById('edit-email').value = user.email;
+
+    // Plan badge
+    const plan = (user.plan || 'Free');
+    const planClass = { Free: 'plan-free', Standard: 'plan-standard', Pro: 'plan-pro' }[plan] || 'plan-free';
+    document.getElementById('plan-badge-wrap').innerHTML =
+      `<span class="plan-badge ${planClass}">✦ Plano ${plan}</span>`;
+
+    // Highlight current plan card
+    const planKey = plan.toLowerCase();
+    ['free','standard','pro'].forEach(p => {
+      const el = document.getElementById(`plan-${p}`);
+      el.classList.toggle('current', p === planKey);
+      if (p === planKey) el.innerHTML += `<div class="plan-current-tag">Plano atual</div>`;
+    });
+
+    // Stats
+    const projects = getProjects();
+    document.getElementById('st-projects').textContent = projects.length;
+    document.getElementById('st-views').textContent = projects.reduce((a,p) => a+(p.views||0), 0);
+    document.getElementById('st-layers').textContent = projects.reduce((a,p) => a+(p.layers||[]).length, 0);
+  }
+
+  function handleAvatar(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      user.avatar = ev.target.result;
+      document.getElementById('avatar-circle').innerHTML = `<img src="${ev.target.result}" alt="avatar" />`;
+      persistUser();
+      toast('📸 Foto atualizada');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function saveProfile() {
+    const name = document.getElementById('edit-name').value.trim();
+    if (!name) { toast('⚠️ Nome não pode ser vazio'); return; }
+    user.name = name;
+    document.getElementById('hero-name').textContent = name;
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    if (!user.avatar) document.getElementById('avatar-initials').textContent = initials;
+    persistUser();
+    toast('✅ Perfil atualizado');
+  }
+
+  function changePassword() {
+    const curr    = document.getElementById('pass-current').value;
+    const newPass = document.getElementById('pass-new').value;
+    const confirm = document.getElementById('pass-confirm').value;
+    if (!curr || !newPass || !confirm) { toast('⚠️ Preencha todos os campos'); return; }
+    if (curr !== user.password) { toast('❌ Senha atual incorreta'); return; }
+    if (newPass.length < 6) { toast('⚠️ Nova senha deve ter ao menos 6 caracteres'); return; }
+    if (newPass !== confirm) { toast('❌ As senhas não coincidem'); return; }
+    user.password = newPass;
+    persistUser();
+    document.getElementById('pass-current').value = '';
+    document.getElementById('pass-new').value = '';
+    document.getElementById('pass-confirm').value = '';
+    toast('🔒 Senha alterada com sucesso');
+  }
+
+  function persistUser() {
+    localStorage.setItem('vooar_current_user', JSON.stringify(user));
+    const users = getUsers();
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx >= 0) { users[idx] = user; saveUsers(users); }
+    // Sincroniza com servidor (background)
+    fetch('/api/users', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    }).catch(() => {});
+  }
+
+  function logout() {
+    localStorage.removeItem('vooar_current_user');
+    location.href = 'index.html';
+  }
+
+  function deleteAccount() {
+    localStorage.removeItem(`vooar_projects_${user.id}`);
+    const users = getUsers().filter(u => u.id !== user.id);
+    saveUsers(users);
+    localStorage.removeItem('vooar_current_user');
+    location.href = 'index.html';
+  }
+
+  function toast(msg, ms=3000) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  document.getElementById('del-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('del-modal'))
+      document.getElementById('del-modal').classList.remove('open');
+  });
+
+  init();
+</script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>

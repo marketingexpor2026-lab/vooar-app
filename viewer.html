@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VOOAR AR" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <title>VOOAR AR</title>
+    <meta name="description" content="Aponte a câmera para a imagem e veja a mágica acontecer!" />
+
+    <!-- Drive + IndexedDB helper -->
+    <script src="drive.js"></script>
+    <script src="sync.js"></script>
+    <!-- MindAR + A-Frame -->
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
+
+      /* ── Tela de carregamento ── */
+      #loading-screen {
+        position: fixed; inset: 0;
+        background: linear-gradient(135deg, #0a0a2e 0%, #1a1a5e 50%, #0d47a1 100%);
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 9999; transition: opacity 0.6s ease;
+      }
+      #loading-screen.hidden { opacity: 0; pointer-events: none; }
+
+      .vooar-logo {
+        color: #fff; font-size: 2.5rem; font-weight: 800;
+        letter-spacing: 4px; margin-bottom: 16px; text-transform: uppercase;
+      }
+      .vooar-logo span { color: #42a5f5; }
+      .loading-text {
+        color: rgba(255,255,255,.7); font-size: .95rem;
+        margin-bottom: 32px; letter-spacing: 1px; text-align: center; padding: 0 20px;
+      }
+      .loading-sub {
+        color: rgba(255,255,255,.4); font-size: .75rem;
+        margin-top: 16px; letter-spacing: .5px; text-align: center; padding: 0 20px;
+      }
+      .spinner {
+        width: 48px; height: 48px;
+        border: 4px solid rgba(255,255,255,.2);
+        border-top-color: #42a5f5;
+        border-radius: 50%; animation: spin .9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* ── Progresso de cache ── */
+      .cache-bar-wrap {
+        width: 200px; height: 4px; background: rgba(255,255,255,.15);
+        border-radius: 2px; margin-top: 18px; overflow: hidden; display: none;
+      }
+      .cache-bar-wrap.show { display: block; }
+      .cache-bar { height: 100%; background: #42a5f5; border-radius: 2px; width: 0%; transition: width .3s; }
+      .cache-label { font-size: 10px; color: rgba(255,255,255,.4); margin-top: 6px; text-align: center; letter-spacing: .4px; }
+
+      /* ── Tela de erro ── */
+      #error-screen {
+        position: fixed; inset: 0;
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 9999; padding: 40px; text-align: center; gap: 16px;
+      }
+      #error-screen.show { display: flex; }
+      .err-icon { font-size: 52px; }
+      #error-screen h2 { color: #fff; font-size: 20px; font-weight: 700; }
+      #error-screen p { color: rgba(255,255,255,.55); font-size: 14px; line-height: 1.7; max-width: 300px; }
+      .btn-back-err {
+        margin-top: 8px; padding: 12px 28px; border-radius: 12px;
+        background: linear-gradient(135deg, #6c63ff, #00d4ff);
+        color: #fff; font-size: 14px; font-weight: 600;
+        text-decoration: none; display: inline-block; border: none; cursor: pointer;
+      }
+
+      /* ── Instrução de mira ── */
+      #scan-hint {
+        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,.6); color: #fff;
+        padding: 12px 24px; border-radius: 30px; font-size: .9rem;
+        letter-spacing: .5px; backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.15);
+        z-index: 100; transition: opacity .5s; white-space: nowrap;
+      }
+      #scan-hint.hidden { opacity: 0; pointer-events: none; }
+
+      /* ── Badge de detecção ── */
+      #detected-badge {
+        position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+        background: rgba(66,165,245,.9); color: #fff;
+        padding: 8px 20px; border-radius: 20px; font-size: .85rem;
+        font-weight: 600; letter-spacing: 1px;
+        z-index: 100; opacity: 0; transition: opacity .4s;
+        backdrop-filter: blur(6px); white-space: nowrap;
+      }
+      #detected-badge.visible { opacity: 1; }
+
+      /* ── Botão fechar ── */
+      #btn-close {
+        position: fixed; top: 20px; right: 20px;
+        width: 40px; height: 40px; border-radius: 50%;
+        background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3);
+        color: #fff; font-size: 1.2rem; cursor: pointer; z-index: 200;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(6px); transition: background .2s;
+      }
+      #btn-close:hover { background: rgba(255,255,255,.2); }
+
+      /* ── Botão instalar PWA ── */
+      #install-btn {
+        position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+        display: none; align-items: center; gap: 8px;
+        background: linear-gradient(135deg, #6c63ff, #00d4ff);
+        border: none; border-radius: 24px; padding: 11px 22px;
+        color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+        box-shadow: 0 6px 20px rgba(108,99,255,.5); z-index: 150;
+        letter-spacing: .3px; white-space: nowrap;
+      }
+      #install-btn svg { flex-shrink: 0; }
+
+      /* ── Nome do projeto (HUD) ── */
+      #proj-hud {
+        position: fixed; top: 20px; left: 20px;
+        background: rgba(0,0,0,.45); backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 20px; padding: 6px 14px;
+        font-size: 12px; font-weight: 600; color: #fff;
+        z-index: 100; max-width: calc(100vw - 100px);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        opacity: 0; transition: opacity .5s;
+      }
+      #proj-hud.show { opacity: 1; }
+
+      /* ── Indicador de referência da imagem ── */
+      #trigger-thumb-wrap {
+        position: fixed; bottom: 100px; right: 16px;
+        z-index: 100; opacity: 0; transition: opacity .5s;
+      }
+      #trigger-thumb-wrap.show { opacity: 1; }
+      #trigger-thumb-wrap img {
+        width: 60px; height: 60px; border-radius: 10px;
+        object-fit: cover; border: 2px solid rgba(255,255,255,.35);
+        box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      }
+      #trigger-thumb-wrap p {
+        font-size: 9px; color: rgba(255,255,255,.5); text-align: center;
+        margin-top: 3px; letter-spacing: .3px;
+      }
+
+      /* ── Badge offline ── */
+      #offline-badge {
+        position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,.6); border: 1px solid rgba(74,222,128,.3);
+        color: #4ade80; padding: 5px 14px; border-radius: 20px;
+        font-size: 11px; font-weight: 600; letter-spacing: .5px;
+        z-index: 100; display: none; backdrop-filter: blur(6px); white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Tela de carregamento -->
+    <div id="loading-screen">
+      <div class="vooar-logo">V<span>OO</span>AR</div>
+      <div class="loading-text" id="loading-text">Carregando experiência AR...</div>
+      <div class="spinner"></div>
+      <div class="loading-sub" id="loading-sub">Aguarde enquanto preparamos a câmera</div>
+      <div class="cache-bar-wrap" id="cache-wrap">
+        <div class="cache-bar" id="cache-bar"></div>
+        <div class="cache-label" id="cache-label">Salvando para uso offline...</div>
+      </div>
+    </div>
+
+    <!-- Tela de erro -->
+    <div id="error-screen">
+      <div class="err-icon" id="err-icon">😕</div>
+      <h2 id="err-title">Projeto não encontrado</h2>
+      <p id="err-msg">Este link pode ter expirado ou o projeto foi removido.</p>
+      <a class="btn-back-err" href="javascript:history.back()">Voltar</a>
+    </div>
+
+    <!-- HUD -->
+    <div id="proj-hud"></div>
+    <div id="detected-badge">📍 Imagem detectada!</div>
+    <div id="scan-hint">📷 Aponte para a imagem gatilho</div>
+    <div id="offline-badge">📦 Modo offline</div>
+    <button id="btn-close" onclick="voltarApp()" title="Fechar AR">✕</button>
+
+    <!-- Botão instalar PWA -->
+    <button id="install-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M5 10l7 7 7-7"/><path d="M4 19h16"/></svg>
+      Instalar VOOAR
+    </button>
+
+    <!-- Miniatura da imagem gatilho -->
+    <div id="trigger-thumb-wrap">
+      <img id="trigger-thumb" src="" alt="gatilho" />
+      <p>Imagem alvo</p>
+    </div>
+
+    <script>
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Utilitários
+    // ════════════════════════════════════════════════════════════════════════════
+    const params = new URLSearchParams(location.search);
+    const uid    = params.get('uid');
+    const pid    = parseInt(params.get('id'));
+
+    const $id = id => document.getElementById(id);
+
+    function setLoadingText(main, sub) {
+      if (main) $id('loading-text').textContent = main;
+      if (sub  !== undefined) $id('loading-sub').textContent = sub;
+    }
+
+    function showCacheProgress(pct, label) {
+      $id('cache-wrap').classList.add('show');
+      $id('cache-bar').style.width = pct + '%';
+      if (label) $id('cache-label').textContent = label;
+    }
+
+    function hideCacheProgress() {
+      $id('cache-wrap').classList.remove('show');
+    }
+
+    function showError(icon, title, msg) {
+      $id('loading-screen').classList.add('hidden');
+      $id('err-icon').textContent = icon;
+      $id('err-title').textContent = title;
+      $id('err-msg').textContent   = msg;
+      $id('error-screen').classList.add('show');
+    }
+
+    function voltarApp() {
+      document.querySelectorAll('video[id^="ar-video-"]').forEach(v => v.pause());
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'closeAR' }));
+      } else { history.back(); }
+    }
+
+    // ── PWA Install prompt ───────────────────────────────────────────────────
+    let _installPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _installPrompt = e;
+      $id('install-btn').style.display = 'flex';
+    });
+    $id('install-btn').addEventListener('click', async () => {
+      if (!_installPrompt) return;
+      _installPrompt.prompt();
+      const { outcome } = await _installPrompt.userChoice;
+      if (outcome === 'accepted') $id('install-btn').style.display = 'none';
+    });
+    window.addEventListener('appinstalled', () => {
+      $id('install-btn').style.display = 'none';
+    });
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Inicialização AR (async — aguarda resolução de assets)
+    // ════════════════════════════════════════════════════════════════════════════
+    (async function initAR() {
+      if (!uid || !pid || isNaN(pid)) {
+        showError('🔗', 'Link inválido', 'O QR code não contém os parâmetros necessários.');
+        return;
+      }
+
+      // ── 1. Carrega projeto — cascata de 3 fontes ────────────────────────
+      setLoadingText('Carregando projeto...', 'Buscando dados');
+
+      let project   = null;
+      let fromCache = false;
+
+      // Compara id de forma robusta (número ou string)
+      const sameId = (a, b) => String(a) === String(b);
+
+      // ① localStorage (mesmo dispositivo — instantâneo)
+      try {
+        const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
+        project = list.find(p => sameId(p.id, pid)) || null;
+        if (project) fromCache = true;
+      } catch {}
+
+      // ② Endpoint específico /api/projects/:uid/:id
+      if (!project) {
+        setLoadingText('Buscando projeto...', 'Tentando servidor (1/2)…');
+        try {
+          const r = await fetch(`/api/projects/${uid}/${pid}`, { signal: AbortSignal.timeout(10000) });
+          if (r.ok) { project = await r.json(); }
+        } catch(e) { console.warn('[VOOAR] fetch 1:', e.message); }
+      }
+
+      // ③ Fallback: busca lista completa e filtra client-side
+      //    (cobre casos em que o endpoint individual tem problema de rota/id)
+      if (!project) {
+        setLoadingText('Buscando projeto...', 'Tentando servidor (2/2)…');
+        try {
+          const r = await fetch(`/api/projects/${uid}`, { signal: AbortSignal.timeout(12000) });
+          if (r.ok) {
+            const list = await r.json();
+            project = list.find(p => sameId(p.id, pid)) || null;
+          }
+        } catch(e) { console.warn('[VOOAR] fetch 2:', e.message); }
+      }
+
+      // Salva no localStorage para próxima visita
+      if (project && !fromCache) {
+        try {
+          const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
+          const idx  = list.findIndex(p => sameId(p.id, pid));
+          if (idx >= 0) list[idx] = project; else list.unshift(project);
+          localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(list));
+        } catch {}
+      }
+
+      if (!project) {
+        // Diagnóstico: saber se servidor responde ou não
+        let serverOk = false;
+        try {
+          const ping = await fetch('/api/health', { signal: AbortSignal.timeout(4000) });
+          serverOk = ping.ok;
+        } catch {}
+
+        let errTitle, errMsg;
+        if (!navigator.onLine) {
+          errTitle = 'Sem conexão à internet';
+          errMsg   = 'Conecte-se à internet e tente novamente. Se já acessou este projeto antes neste dispositivo, pode estar salvo no cache.';
+        } else if (!serverOk) {
+          errTitle = 'Servidor indisponível';
+          errMsg   = 'O servidor VOOAR não está respondendo. Tente novamente em alguns instantes.';
+        } else {
+          errTitle = 'Projeto não sincronizado';
+          errMsg   = 'O projeto existe mas não foi enviado ao servidor. Abra o dashboard no dispositivo de origem, clique em QR do projeto e aguarde "✅ Sincronizado".';
+        }
+
+        showError('😕', errTitle, errMsg);
+        return;
+      }
+
+      // ── 2. Normaliza para array de alvos (suporta formato antigo e novo) ────
+      const targets = project.targets || [{
+        id: pid,
+        triggerImage:      project.triggerImage      || null,
+        triggerImageLocal: project.triggerImageLocal || null,
+        triggerAspect:     project.triggerAspect     || null,
+        arVideo:           project.arVideo           || null,
+        arVideoType:       project.arVideoType       || null,
+      }];
+
+      if (!targets.some(t => t.arVideo)) {
+        showError('🎬', 'Vídeo não configurado',
+          'Nenhum vídeo AR foi adicionado. Acesse o editor e faça o upload do vídeo.');
+        return;
+      }
+
+      setLoadingText(`"${project.name}"`, 'Preparando AR...');
+
+      // ── 3. Resolve VÍDEO para cada alvo ─────────────────────────────────
+      const videoMime = 'video/mp4';
+      let isOffline   = false;
+      const videoSrcs = [];
+
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        if (!t.arVideo) { videoSrcs.push(null); continue; }
+
+        let src = null;
+        if (t.arVideo.startsWith('idb://')) {
+          const idbKey = t.arVideo.replace('idb://', '');
+          src = await AssetDB.getBlobUrl('video', idbKey, videoMime);
+          if (!src) {
+            showError('🎬', 'Vídeo não disponível',
+              `O vídeo do alvo ${i+1} está salvo apenas no dispositivo de criação. ` +
+              'Acesse o editor nesse dispositivo e reenvie o vídeo para o servidor.');
+            return;
+          }
+          isOffline = true;
+        } else {
+          // Tenta cache local primeiro
+          const idbKey = String(t.id || pid);
+          const cached = await AssetDB.getBlobUrl('video', idbKey, videoMime);
+          if (cached) {
+            src = cached; isOffline = true;
+          } else {
+            src = t.arVideo;
+            // Cache em background (não bloqueia o AR)
+            cacheVideoInBackground(t.arVideo, idbKey, videoMime);
+          }
+        }
+        videoSrcs.push(src);
+      }
+
+      // ── 4. Resolve ARQUIVO .mind ─────────────────────────────────────────
+      let mindSrc = null;
+
+      if (window.MindDB) {
+        try { mindSrc = await MindDB.getBlobUrl(pid); } catch {}
+      }
+      if (!mindSrc && project.mindFile && !project.mindFile.startsWith('indexeddb://')) {
+        mindSrc = project.mindFile;
+      }
+
+      if (!mindSrc) {
+        showError('🧠', 'Arquivo AR ausente',
+          'O arquivo de rastreamento (.mind) não foi configurado. ' +
+          'Acesse o editor, compile as imagens no MindAR Compiler e faça upload do .mind.');
+        return;
+      }
+
+      // ── 5. HUD e thumbnail ───────────────────────────────────────────────
+      $id('proj-hud').textContent = project.name;
+      setTimeout(() => $id('proj-hud').classList.add('show'), 1000);
+
+      const firstTarget = targets[0];
+      if (firstTarget && (firstTarget.triggerImageLocal || firstTarget.triggerImage)) {
+        const src = firstTarget.triggerImageLocal || firstTarget.triggerImage;
+        if (src && !src.startsWith('blob:')) {
+          $id('trigger-thumb').src = src;
+          setTimeout(() => $id('trigger-thumb-wrap').classList.add('show'), 1400);
+        }
+      }
+
+      if (isOffline) $id('offline-badge').style.display = 'block';
+
+      // ── 6. Injeta a-scene com todos os alvos ─────────────────────────────
+      const assetsHTML  = targets.map((t, i) => videoSrcs[i]
+        ? `<video id="ar-video-${i}" src="${videoSrcs[i]}" preload="auto" playsinline webkit-playsinline loop muted crossorigin="anonymous"></video>`
+        : ''
+      ).join('\n            ');
+
+      const entitiesHTML = targets.map((t, i) => {
+        if (!videoSrcs[i]) return '';
+        // triggerAspect = height/width da imagem → plano cobre exatamente a imagem
+        const h = (t.triggerAspect && t.triggerAspect > 0) ? t.triggerAspect.toFixed(4) : '0.5625';
+        return `
+          <a-entity mindar-image-target="targetIndex: ${i}">
+            <a-plane
+              src="#ar-video-${i}"
+              position="0 0 0"
+              width="1"
+              height="${h}"
+              material="shader: flat; src: #ar-video-${i}; transparent: false;"
+            ></a-plane>
+          </a-entity>`;
+      }).join('');
+
+      document.body.insertAdjacentHTML('beforeend', `
+        <a-scene
+          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
+          color-space="sRGB"
+          renderer="colorManagement: true; physicallyCorrectLights: true"
+          vr-mode-ui="enabled: false"
+          device-orientation-permission-ui="enabled: false"
+        >
+          <a-assets>
+            ${assetsHTML}
+          </a-assets>
+          <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+          ${entitiesHTML}
+        </a-scene>
+      `);
+
+      // ── 7. Eventos da cena ───────────────────────────────────────────────
+      const scene         = document.querySelector('a-scene');
+      const loadingScreen = $id('loading-screen');
+      const scanHint      = $id('scan-hint');
+      const detectedBadge = $id('detected-badge');
+
+      scene.addEventListener('loaded', () => {
+        setTimeout(() => loadingScreen.classList.add('hidden'), 800);
+
+        // ── Eventos por alvo (APÓS a cena estar carregada) ──────────────────
+        // Cada entidade emite seu próprio targetFound/targetLost — isso garante
+        // que só o vídeo do alvo detectado toca, e não todos ao mesmo tempo.
+        let activeTargets = 0;
+
+        targets.forEach((t, i) => {
+          if (!videoSrcs[i]) return;
+
+          // Seletor: o mindar-image-target com o índice correto
+          const entity   = scene.querySelector(`[mindar-image-target="targetIndex: ${i}"]`);
+          const videoEl  = $id(`ar-video-${i}`);
+          if (!entity || !videoEl) return;
+
+          entity.addEventListener('targetFound', () => {
+            activeTargets++;
+            detectedBadge.classList.add('visible');
+            scanHint.classList.add('hidden');
+            // Toca apenas o vídeo deste alvo
+            videoEl.muted = false;
+            videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
+          });
+
+          entity.addEventListener('targetLost', () => {
+            activeTargets = Math.max(0, activeTargets - 1);
+            // Pausa apenas o vídeo deste alvo
+            videoEl.pause();
+            if (activeTargets === 0) {
+              detectedBadge.classList.remove('visible');
+              scanHint.classList.remove('hidden');
+            }
+          });
+        });
+      });
+
+      // ── 7. Solicita câmera ───────────────────────────────────────────────
+      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
+        .catch(e => {
+          if (e.name === 'NotAllowedError') {
+            alert('Por favor, permita o acesso à câmera para usar o AR.');
+          }
+        });
+
+      // ── 8. Incrementa views (silencioso) ─────────────────────────────────
+      try {
+        const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
+        const idx  = list.findIndex(p => sameId(p.id, pid));
+        if (idx >= 0) { list[idx].views = (list[idx].views || 0) + 1; localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(list)); }
+      } catch {}
+      // Servidor — usa endpoint dedicado (não sobrescreve o projeto)
+      fetch(`/api/projects/${uid}/${pid}/view`, { method: 'POST' }).catch(() => {});
+      // Drive
+      if (window.Drive && Drive.isConfigured()) {
+        Drive.incrementViews(uid, pid);
+      }
+
+    })(); // fim initAR
+
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Cache de vídeo em background (não bloqueia o AR)
+    // ════════════════════════════════════════════════════════════════════════════
+    async function cacheVideoInBackground(url, id, mimeType) {
+      try {
+        showCacheProgress(5, 'Baixando vídeo para uso offline...');
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+
+        const total  = parseInt(resp.headers.get('content-length') || '0');
+        const reader = resp.body.getReader();
+        const chunks = [];
+        let loaded = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          if (total > 0) showCacheProgress(Math.round(loaded / total * 90), 'Baixando vídeo...');
+        }
+
+        showCacheProgress(95, 'Salvando offline...');
+        const blob = new Blob(chunks, { type: mimeType });
+        const buf  = await blob.arrayBuffer();
+        await AssetDB.store('video', id, buf);
+        showCacheProgress(100, '✓ Vídeo salvo para uso offline');
+        setTimeout(hideCacheProgress, 2000);
+        console.log('[VOOAR] Vídeo cacheado no IndexedDB:', Math.round(buf.byteLength / 1024) + ' KB');
+      } catch(e) {
+        hideCacheProgress();
+        console.warn('[VOOAR] Cache de vídeo falhou:', e.message);
+      }
+    }
+    </script>
+
+    <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+  </body>
+</html>

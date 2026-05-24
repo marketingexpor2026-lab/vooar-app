@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerar Ícones — VOOAR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh; color: #fff;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 32px; padding: 40px 20px;
+    }
+    h1 {
+      font-size: 24px; font-weight: 800;
+      background: linear-gradient(135deg, #fff, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    p { color: rgba(255,255,255,.5); font-size: 14px; text-align: center; max-width: 380px; line-height: 1.6; }
+    .icons-row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; }
+    .icon-card {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 20px; padding: 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+    }
+    .icon-card span { font-size: 13px; color: rgba(255,255,255,.6); }
+    .btn {
+      padding: 10px 22px; border-radius: 10px;
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      border: none; color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 4px 14px rgba(108,99,255,.4);
+    }
+    .note {
+      background: rgba(108,99,255,.1); border: 1px solid rgba(108,99,255,.3);
+      border-radius: 14px; padding: 16px 20px;
+      font-size: 13px; color: rgba(255,255,255,.7);
+      max-width: 460px; line-height: 1.7; text-align: center;
+    }
+    code {
+      background: rgba(255,255,255,.1); border-radius: 5px;
+      padding: 2px 6px; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gerador de Ícones VOOAR</h1>
+  <p>Clique nos botões abaixo para baixar os ícones. Salve-os na pasta <code>icons/</code> do projeto.</p>
+
+  <div class="icons-row" id="icons-row"></div>
+
+  <div class="note">
+    Após baixar, salve os arquivos como:<br>
+    <code>icons/icon-192.png</code> e <code>icons/icon-512.png</code><br><br>
+    Esses ícones são usados no manifest.json para instalação como PWA, Play Store e App Store.
+  </div>
+
+  <script>
+    function drawIcon(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const c = size / 2;
+      const rr = size * 0.22;
+
+      // Background
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, rr);
+      const bg = ctx.createLinearGradient(0, 0, size, size);
+      bg.addColorStop(0, '#302b63');
+      bg.addColorStop(0.5, '#24243e');
+      bg.addColorStop(1, '#0f0c29');
+      ctx.fillStyle = bg;
+      ctx.fill();
+
+      // Purple glow
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, rr);
+      const glow = ctx.createRadialGradient(c, c * 0.75, 0, c, c, size * 0.65);
+      glow.addColorStop(0, 'rgba(108,99,255,0.45)');
+      glow.addColorStop(0.5, 'rgba(108,99,255,0.15)');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fill();
+
+      // Hexagon
+      const r = size * 0.37;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const x = c + r * Math.cos(angle);
+        const y = c + r * Math.sin(angle);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = size * 0.048;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Dashed vertical line
+      ctx.setLineDash([size * 0.042, size * 0.028]);
+      ctx.lineWidth = size * 0.024;
+      ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+      ctx.beginPath();
+      ctx.moveTo(c, c - r * 0.9);
+      ctx.lineTo(c, c + r * 0.9);
+      ctx.stroke();
+
+      // Dashed horizontal lines
+      const hy = r * Math.sin(Math.PI / 3);
+      const hx = r * 0.85;
+      [-0.5, 0.5].forEach(mult => {
+        ctx.beginPath();
+        ctx.moveTo(c - hx, c + hy * mult);
+        ctx.lineTo(c + hx, c + hy * mult);
+        ctx.stroke();
+      });
+
+      ctx.setLineDash([]);
+
+      // Center circle
+      ctx.beginPath();
+      ctx.arc(c, c, size * 0.095, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.fill();
+
+      // Top triangle hint
+      ctx.beginPath();
+      ctx.moveTo(c - r * 0.28, c - r * 0.62);
+      ctx.lineTo(c, c - r * 0.9);
+      ctx.lineTo(c + r * 0.28, c - r * 0.62);
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = size * 0.022;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      return canvas;
+    }
+
+    function downloadCanvas(canvas, filename) {
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    }
+
+    const row = document.getElementById('icons-row');
+    [192, 512].forEach(size => {
+      const canvas = drawIcon(size);
+      const preview = drawIcon(Math.min(size, 120)); // preview at max 120px
+
+      const card = document.createElement('div');
+      card.className = 'icon-card';
+      card.appendChild(preview);
+
+      const label = document.createElement('span');
+      label.textContent = `icon-${size}.png (${size}×${size})`;
+      card.appendChild(label);
+
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = `⬇ Baixar ${size}px`;
+      btn.onclick = () => downloadCanvas(canvas, `icon-${size}.png`);
+      card.appendChild(btn);
+
+      row.appendChild(card);
+    });
+  </script>
+</body>
+</html>
