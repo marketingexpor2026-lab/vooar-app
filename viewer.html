@@ -485,33 +485,51 @@
 
       if (isOffline) $id('offline-badge').style.display = 'block';
 
-      // ── 6. Injeta a-scene com todos os alvos ─────────────────────────────
-      const assetsHTML  = targets.map((t, i) => videoSrcs[i]
-        ? `<video id="ar-video-${i}" src="${videoSrcs[i]}" preload="auto" playsinline webkit-playsinline loop muted crossorigin="anonymous"></video>`
+      // ── 6. Calcula aspect ratio real de cada alvo ────────────────────────
+      // Usa triggerAspect gravado; se ausente, carrega a imagem e mede
+      async function resolveAspect(t) {
+        if (t.triggerAspect && t.triggerAspect > 0) return t.triggerAspect;
+        const imgSrc = t.triggerImage;
+        if (imgSrc && !imgSrc.startsWith('data:')) {
+          try {
+            return await new Promise((res, rej) => {
+              const img = new Image();
+              img.onload  = () => res(img.naturalHeight / img.naturalWidth);
+              img.onerror = rej;
+              img.crossOrigin = 'anonymous';
+              img.src = imgSrc;
+            });
+          } catch {}
+        }
+        return 0.5625; // fallback 16:9
+      }
+      const aspects = await Promise.all(targets.map(t => resolveAspect(t)));
+
+      // ── 7. Injeta a-scene com todos os alvos ─────────────────────────────
+      const assetsHTML = targets.map((t, i) => videoSrcs[i]
+        ? `<video id="ar-video-${i}" src="${videoSrcs[i]}" preload="auto" playsinline webkit-playsinline loop muted crossorigin="anonymous" style="display:none"></video>`
         : ''
       ).join('\n            ');
 
       const entitiesHTML = targets.map((t, i) => {
         if (!videoSrcs[i]) return '';
-        // triggerAspect = height/width da imagem → plano cobre exatamente a imagem
-        const h = (t.triggerAspect && t.triggerAspect > 0) ? t.triggerAspect.toFixed(4) : '0.5625';
+        const h = aspects[i].toFixed(4);
         return `
           <a-entity mindar-image-target="targetIndex: ${i}">
             <a-plane
-              src="#ar-video-${i}"
-              position="0 0 0"
+              position="0 0 0.0001"
               width="1"
               height="${h}"
-              material="shader: flat; src: #ar-video-${i}; transparent: false;"
+              material="shader: flat; src: #ar-video-${i}; transparent: false; side: double; npot: true;"
             ></a-plane>
           </a-entity>`;
       }).join('');
 
       document.body.insertAdjacentHTML('beforeend', `
         <a-scene
-          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 1000; missTolerance: 5; warmupTolerance: 3;"
+          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
           color-space="sRGB"
-          renderer="colorManagement: true; physicallyCorrectLights: true"
+          renderer="colorManagement: true; physicallyCorrectLights: false; antialias: false; alpha: true"
           vr-mode-ui="enabled: false"
           device-orientation-permission-ui="enabled: false"
         >
