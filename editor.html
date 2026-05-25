@@ -1488,7 +1488,29 @@
     // 1. Salva localmente primeiro
     await saveProject();
 
-    // 2. Verifica assets obrigatórios
+    // 2. Se .mind está só no IndexedDB, faz upload automático para o servidor
+    if (project.mindFile && project.mindFile.startsWith('indexeddb://')) {
+      btn.textContent = '⬆ Enviando .mind...';
+      btn.className = 'btn-publish syncing';
+      try {
+        const blobUrl = await MindDB.getBlobUrl(projectId);
+        if (blobUrl) {
+          const resp   = await fetch(blobUrl);
+          const buf    = await resp.arrayBuffer();
+          const file   = new File([buf], 'targets.mind', { type: 'application/octet-stream' });
+          const svrUrl = await uploadFileToServer(file, null);
+          if (svrUrl) {
+            project.mindFile = svrUrl;
+            document.getElementById('mind-label').textContent = 'targets.mind';
+            document.getElementById('mind-sub').textContent   = svrUrl;
+            setStatus('mind', 'ok', '✓ .mind na nuvem — AR funciona em qualquer dispositivo!');
+            autoSave();
+          }
+        }
+      } catch(e) { console.warn('[VOOAR] Auto-upload .mind failed:', e); }
+    }
+
+    // 3. Verifica assets obrigatórios
     const allTargets = project.targets || [];
     const hasMind  = project.mindFile && !project.mindFile.startsWith('indexeddb://');
     const hasVideo = project.arVideo || allTargets.some(t => t.arVideo);
@@ -1496,6 +1518,8 @@
                        || allTargets.some(t => (t.arVideo||'').startsWith('idb://'));
 
     if (!hasMind) {
+      btn.textContent = '☁️ Publicar';
+      btn.className = 'btn-publish';
       toast('⚠️ Compile e faça upload do arquivo .mind antes de publicar!', 5000);
       return;
     }
