@@ -65,6 +65,17 @@
       transition: all .2s; font-family: inherit;
     }
     .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.5); }
+    .btn-publish {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(74,222,128,.15); border: 1.5px solid rgba(74,222,128,.5);
+      border-radius: 10px; padding: 8px 16px;
+      color: #4ade80; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s; font-family: inherit;
+    }
+    .btn-publish:hover { background: rgba(74,222,128,.28); }
+    .btn-publish.syncing { color: #a78bfa; border-color: rgba(167,139,250,.5); background: rgba(167,139,250,.1); }
+    .btn-publish.synced  { color: #4ade80; border-color: rgba(74,222,128,.6); background: rgba(74,222,128,.18); }
+    .btn-publish.error   { color: #f87171; border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.1); }
 
     /* ── Layout ── */
     .layout {
@@ -468,6 +479,9 @@
     <button class="btn-preview" onclick="openViewer()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Testar AR
+    </button>
+    <button class="btn-publish" id="publish-btn" onclick="publishProject()" title="Salva e envia ao servidor para o QR funcionar em qualquer dispositivo">
+      ☁️ Publicar
     </button>
     <button class="btn-save" id="save-btn" onclick="saveProject()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1466,6 +1480,61 @@
     }, 2000);
     const where = driveOnline ? ' no Drive' : serverOnline ? ' no servidor' : ' localmente';
     toast('💾 Projeto salvo' + where);
+  }
+
+  async function publishProject() {
+    const btn = document.getElementById('publish-btn');
+
+    // 1. Salva localmente primeiro
+    await saveProject();
+
+    // 2. Verifica assets obrigatórios
+    const allTargets = project.targets || [];
+    const hasMind  = project.mindFile && !project.mindFile.startsWith('indexeddb://');
+    const hasVideo = project.arVideo || allTargets.some(t => t.arVideo);
+    const hasLocalVideo = (project.arVideo||'').startsWith('idb://')
+                       || allTargets.some(t => (t.arVideo||'').startsWith('idb://'));
+
+    if (!hasMind) {
+      toast('⚠️ Compile e faça upload do arquivo .mind antes de publicar!', 5000);
+      return;
+    }
+    if (hasLocalVideo) {
+      toast('⚠️ Vídeo salvo só localmente — use o botão de upload para enviar ao servidor.', 5000);
+      return;
+    }
+
+    // 3. Publica no servidor
+    btn.textContent = '⏳ Publicando...';
+    btn.className = 'btn-publish syncing';
+
+    try {
+      const status = await SyncManager.checkServer();
+      if (status === 'offline' || status === 'no_server') {
+        btn.textContent = '❌ Sem servidor';
+        btn.className = 'btn-publish error';
+        toast('❌ Servidor offline — tente novamente em instantes.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+        return;
+      }
+
+      const ok = await SyncManager.syncProject(user.id, project);
+      if (ok) {
+        btn.textContent = '✅ Publicado!';
+        btn.className = 'btn-publish synced';
+        toast('✅ Publicado! QR funciona em qualquer dispositivo agora.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 5000);
+      } else {
+        btn.textContent = '❌ Falhou';
+        btn.className = 'btn-publish error';
+        toast('❌ Não foi possível publicar — verifique a conexão.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+      }
+    } catch(e) {
+      btn.textContent = '❌ Erro';
+      btn.className = 'btn-publish error';
+      setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+    }
   }
 
   let autoSaveTimer = null;
