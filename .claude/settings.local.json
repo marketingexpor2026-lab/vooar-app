@@ -5,7 +5,12 @@
       "Read(//opt/homebrew/bin/**)",
       "Read(//usr/local/**)",
       "Bash(/opt/homebrew/bin/node --version)",
-      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")"
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(git --version)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)"
     ]
   }
 }
