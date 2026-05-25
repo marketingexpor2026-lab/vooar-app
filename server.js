@@ -145,15 +145,20 @@ app.get('/api/projects/:uid/:id', (req, res) => {
 });
 
 app.post('/api/projects/:uid', (req, res) => {
-  const project = req.body;
-  const saved   = DB.upsertProject(req.params.uid, project);
-  broadcastAdmin('project_update', {
-    projectId: project.id,
-    name:      project.name,
-    userId:    req.params.uid,
-    action:    'upsert',
-  });
-  res.json({ ok: true, project: saved });
+  try {
+    const project = req.body;
+    const saved   = DB.upsertProject(req.params.uid, project);
+    broadcastAdmin('project_update', {
+      projectId: project.id,
+      name:      project.name,
+      userId:    req.params.uid,
+      action:    'upsert',
+    });
+    res.json({ ok: true, project: saved });
+  } catch(e) {
+    console.error('[POST /api/projects] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/projects/:uid/:id', (req, res) => {

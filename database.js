@@ -281,6 +281,18 @@ function getAllProjects() {
 }
 
 function upsertProject(userId, project) {
+  // Garante que o usuário existe — caso o usuário tenha dados só no localStorage
+  // e nunca tenha feito registro via /api/register no servidor atual.
+  db.prepare(`
+    INSERT OR IGNORE INTO users (id, name, email, plan)
+    VALUES (?, ?, ?, ?)
+  `).run(
+    Number(userId),
+    project.userName || 'Usuário',
+    project.userEmail || `user_${userId}@vooar.dev`,
+    'Free'
+  );
+
   const existing = db.prepare(
     `SELECT id FROM projects WHERE user_id = ? AND id = ?`
   ).get(Number(userId), Number(project.id));
