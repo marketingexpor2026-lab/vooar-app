@@ -470,7 +470,7 @@
 <body>
 
 <header>
-  <button class="btn-back" onclick="location.href='dashboard.html'">
+  <button class="btn-back" onclick="_adminEdit ? window.close() : location.href='dashboard.html'">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
     Dashboard
   </button>
@@ -663,11 +663,21 @@
 <script src="sync.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-  const user = JSON.parse(localStorage.getItem('vooar_current_user'));
-  if (!user) location.href = 'index.html';
-
   const params    = new URLSearchParams(location.search);
   const projectId = parseInt(params.get('id'));
+  const _adminEdit = params.get('adminEdit') === '1';
+  const _ownerUid  = params.get('uid') ? Number(params.get('uid')) : null;
+
+  // Suporte ao modo adminEdit: admin editando projeto de outro usuário
+  let user = JSON.parse(localStorage.getItem('vooar_current_user'));
+  if (!user && _adminEdit && _ownerUid) {
+    // Admin abrindo editor sem estar logado como usuário normal — cria contexto temporário
+    user = { id: _ownerUid, name: 'Admin', email: 'joabe@vooar.dev', plan: 'Developer' };
+  } else if (!user) {
+    location.href = 'index.html';
+  }
+  // Em modo adminEdit, usa o uid do dono do projeto para todas operações de API/localStorage
+  if (_adminEdit && _ownerUid) user = { ...user, id: _ownerUid };
   let project     = null;
   let editingLayerId = null;
   let serverOnline   = false;
@@ -882,7 +892,7 @@
     if (!project) {
       const list = getProjects();
       project = list.find(p => p.id === projectId);
-      if (!project) { location.href = 'dashboard.html'; return; }
+      if (!project) { location.href = _adminEdit ? 'admin.html' : 'dashboard.html'; return; }
     }
 
     document.getElementById('project-name-input').value = project.name || '';

@@ -49,7 +49,9 @@ const upload = multer({
 
 // ── Admin middleware ───────────────────────────────────────────────────────────
 function requireAdmin(req, res, next) {
-  if (req.headers['x-admin-token'] !== DB.ADMIN_TOKEN)
+  // Aceita token via header (fetch/XHR) ou query param ?t= (EventSource não suporta headers)
+  const token = req.headers['x-admin-token'] || req.query.t;
+  if (token !== DB.ADMIN_TOKEN)
     return res.status(403).json({ error: 'Acesso negado' });
   next();
 }
