@@ -165,6 +165,20 @@
         font-size: 11px; font-weight: 600; letter-spacing: .5px;
         z-index: 100; display: none; backdrop-filter: blur(6px); white-space: nowrap;
       }
+
+      /* ── Tap-to-start (desbloqueio de áudio) ── */
+      #tap-audio-screen {
+        position: fixed; inset: 0; z-index: 9990;
+        background: rgba(0,0,0,.78); backdrop-filter: blur(6px);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center; gap: 16px;
+        cursor: pointer;
+      }
+      #tap-audio-screen.show { display: flex; }
+      #tap-audio-screen .tap-icon { font-size: 56px; animation: pulse 1.6s ease-in-out infinite; }
+      #tap-audio-screen .tap-title { color: #fff; font-size: 22px; font-weight: 800; letter-spacing: .5px; }
+      #tap-audio-screen .tap-sub { color: rgba(255,255,255,.5); font-size: 13px; }
+      @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
     </style>
   </head>
   <body>
@@ -201,6 +215,13 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M5 10l7 7 7-7"/><path d="M4 19h16"/></svg>
       Instalar VOOAR
     </button>
+
+    <!-- Tap-to-start: desbloqueio de áudio (exibido após cena carregar) -->
+    <div id="tap-audio-screen" onclick="unlockAudioAndStart()">
+      <div class="tap-icon">🔊</div>
+      <div class="tap-title">Toque para ativar o áudio</div>
+      <div class="tap-sub">Necessário para o vídeo AR ter som</div>
+    </div>
 
     <!-- Miniatura da imagem gatilho -->
     <div id="trigger-thumb-wrap">
@@ -264,6 +285,39 @@
     window.addEventListener('appinstalled', () => {
       $id('install-btn').style.display = 'none';
     });
+
+    // ── Desbloqueio de áudio (requer gesto do usuário no iOS/Safari) ────────────
+    let _audioUnlocked = false;
+
+    function unlockAudioAndStart() {
+      if (_audioUnlocked) return;
+      _audioUnlocked = true;
+
+      // Unlock AudioContext (necessário para Web Audio API)
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(ctx.destination);
+          src.start(0);
+          ctx.resume().catch(() => {});
+        }
+      } catch(e) {}
+
+      // Pre-play+pause em cada vídeo para desbloquear o áudio deles
+      // (DEVE estar dentro de um event handler de gesto do usuário)
+      document.querySelectorAll('video[id^="ar-video-"]').forEach(v => {
+        v.muted = false;
+        const p = v.play();
+        if (p) p.then(() => { v.pause(); v.currentTime = 0; })
+               .catch(() => { v.muted = true; v.currentTime = 0; });
+      });
+
+      $id('tap-audio-screen').classList.remove('show');
+    }
 
     // ════════════════════════════════════════════════════════════════════════════
     //  Inicialização AR (async — aguarda resolução de assets)
@@ -455,7 +509,7 @@
 
       document.body.insertAdjacentHTML('beforeend', `
         <a-scene
-          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
+          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 1000; missTolerance: 5; warmupTolerance: 3;"
           color-space="sRGB"
           renderer="colorManagement: true; physicallyCorrectLights: true"
           vr-mode-ui="enabled: false"
@@ -476,34 +530,48 @@
       const detectedBadge = $id('detected-badge');
 
       scene.addEventListener('loaded', () => {
-        setTimeout(() => loadingScreen.classList.add('hidden'), 800);
+        setTimeout(() => {
+          loadingScreen.classList.add('hidden');
+          // Mostra tap-to-start para desbloquear áudio
+          setTimeout(() => $id('tap-audio-screen').classList.add('show'), 300);
+        }, 800);
 
         // ── Eventos por alvo (APÓS a cena estar carregada) ──────────────────
-        // Cada entidade emite seu próprio targetFound/targetLost — isso garante
-        // que só o vídeo do alvo detectado toca, e não todos ao mesmo tempo.
         let activeTargets = 0;
 
         targets.forEach((t, i) => {
           if (!videoSrcs[i]) return;
 
-          // Seletor: o mindar-image-target com o índice correto
-          const entity   = scene.querySelector(`[mindar-image-target="targetIndex: ${i}"]`);
-          const videoEl  = $id(`ar-video-${i}`);
+          const entity  = scene.querySelector(`[mindar-image-target="targetIndex: ${i}"]`);
+          const videoEl = $id(`ar-video-${i}`);
           if (!entity || !videoEl) return;
 
           entity.addEventListener('targetFound', () => {
             activeTargets++;
             detectedBadge.classList.add('visible');
             scanHint.classList.add('hidden');
-            // Toca apenas o vídeo deste alvo
-            videoEl.muted = false;
-            videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
+            $id('tap-audio-screen').classList.remove('show');
+
+            // Reinicia o vídeo do início para garantir áudio sincronizado
+            videoEl.currentTime = 0;
+
+            if (_audioUnlocked) {
+              // Áudio já desbloqueado pelo gesto do usuário
+              videoEl.muted = false;
+              videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
+            } else {
+              // Fallback: toca mutado até o usuário tocar
+              videoEl.muted = true;
+              videoEl.play().catch(() => {});
+              // Mostra tap-to-start para desbloquear
+              $id('tap-audio-screen').classList.add('show');
+            }
           });
 
           entity.addEventListener('targetLost', () => {
             activeTargets = Math.max(0, activeTargets - 1);
-            // Pausa apenas o vídeo deste alvo
             videoEl.pause();
+            videoEl.currentTime = 0; // Reseta para próxima detecção começar do início
             if (activeTargets === 0) {
               detectedBadge.classList.remove('visible');
               scanHint.classList.remove('hidden');
