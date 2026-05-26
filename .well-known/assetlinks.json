@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.exporchapadadiamantina.twa",
+        "sha256_cert_fingerprints": ["63:AF:6F:3B:CD:56:43:B6:24:18:53:6C:E9:F0:78:8C:48:0D:D9:2A:3F:D3:AE:FB:70:D6:4C:1E:EC:2B:98:4E"]
+      }
+    }]

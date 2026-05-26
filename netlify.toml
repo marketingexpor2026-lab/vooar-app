@@ -9,3 +9,11 @@
   to = "https://vooar-app-production.up.railway.app/uploads/:splat"
   status = 200
   force = true
+
+# Digital Asset Links — necessário para TWA Android funcionar
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "no-cache"
