@@ -161,9 +161,10 @@ ensureAdmin();
 
 // ── Limites por plano ─────────────────────────────────────────────────────────
 const PLAN_LIMITS = {
-  'Free':      3,
+  'Free':      1,
   'Starter':   10,
-  'Pro':       30,
+  'Standard':  10,
+  'Pro':       20,
   'Business':  100,
   'Developer': Infinity,
 };
