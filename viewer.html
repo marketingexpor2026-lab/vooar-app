@@ -611,31 +611,51 @@
       }).join('');
 
       // ── Componente de suavização extra (2ª camada além do filtro MindAR) ──
-      // Aplica slerp/lerp no quaternion e posição do alvo a cada frame.
-      // factor: 0.0 = estático, 1.0 = sem suavização. 0.45 = bom equilíbrio.
+      // factor: quanto % do caminho percorre por frame (0=estático, 1=sem suavização)
+      // deadzone: deslocamento mínimo para mover (ignora micro-tremores abaixo deste valor)
       if (!AFRAME.components['ar-smooth']) {
         AFRAME.registerComponent('ar-smooth', {
-          schema: { factor: { default: 0.45 } },
+          schema: {
+            factor:   { default: 0.2  },   // 20% por frame = suavização forte
+            deadzone: { default: 0.002 },  // ignora tremores < 0.2 mm (em unidades AR)
+          },
           init() {
-            this._pos  = new THREE.Vector3();
-            this._quat = new THREE.Quaternion();
-            this._first = true;
+            this._pos     = new THREE.Vector3();
+            this._quat    = new THREE.Quaternion();
+            this._rawPos  = new THREE.Vector3();
+            this._rawQuat = new THREE.Quaternion();
+            this._first   = true;
           },
           tick() {
             const obj = this.el.object3D;
             if (!obj.visible) { this._first = true; return; }
-            const cur = obj;
+
+            // Captura pose crua definida pelo MindAR neste frame
+            this._rawPos.copy(obj.position);
+            this._rawQuat.copy(obj.quaternion);
+
             if (this._first) {
-              this._pos.copy(cur.position);
-              this._quat.copy(cur.quaternion);
+              this._pos.copy(this._rawPos);
+              this._quat.copy(this._rawQuat);
               this._first = false;
+              // Não sobrescreve — deixa MindAR definir a pose inicial limpa
               return;
             }
-            const f = this.data.factor;
-            this._pos.lerp(cur.position, f);
-            this._quat.slerp(cur.quaternion, f);
-            cur.position.copy(this._pos);
-            cur.quaternion.copy(this._quat);
+
+            const f  = this.data.factor;
+            const dz = this.data.deadzone;
+
+            // Deadzone: só lerp se o movimento for maior que o limiar
+            const dist = this._pos.distanceTo(this._rawPos);
+            if (dist > dz) {
+              this._pos.lerp(this._rawPos, f);
+            }
+            // Rotação: sempre suaviza (não tem deadzone angular simples)
+            this._quat.slerp(this._rawQuat, f);
+
+            // Aplica pose suavizada ao objeto
+            obj.position.copy(this._pos);
+            obj.quaternion.copy(this._quat);
           }
         });
       }
