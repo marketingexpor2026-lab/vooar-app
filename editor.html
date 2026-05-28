@@ -1000,7 +1000,7 @@
             <div class="upload-zone${hasImg ? ' has-media' : ''}" id="trig-zone-${t.id}" onclick="document.getElementById('trig-file-${t.id}').click()">
               <div class="uz-placeholder">
                 <div class="uz-icon">📷</div>
-                <div class="uz-hint"><strong>Clique ou arraste</strong>JPG, PNG · até 20 MB</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>JPG, PNG · máx 3 MB</div>
               </div>
               <img class="uz-preview" id="trig-img-${t.id}" style="display:${hasImg?'block':'none'}" alt="alvo ${i+1}" />
               <div class="uz-overlay">
@@ -1031,7 +1031,7 @@
             <div class="upload-zone${hasVid ? ' has-media' : ''}" id="vid-zone-${t.id}" onclick="document.getElementById('vid-file-${t.id}').click()">
               <div class="uz-placeholder">
                 <div class="uz-icon">🎬</div>
-                <div class="uz-hint"><strong>Clique ou arraste</strong>MP4, MOV · até 500 MB</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>MP4, MOV · máx 60 MB</div>
               </div>
               <video class="uz-video-preview" id="vid-preview-${t.id}" muted loop playsinline style="display:none"></video>
               <div class="uz-overlay">
@@ -1085,6 +1085,7 @@
 
   async function processTriggerForTarget(file, targetId) {
     if (!file || !file.type.startsWith('image/')) { toast('⚠️ Arquivo deve ser uma imagem'); return; }
+    if (file.size > 3 * 1024 * 1024) { toast('⚠️ Imagem muito grande. Máximo permitido: 3 MB.'); return; }
     const t = (project.targets || []).find(t => t.id === targetId);
     if (!t) return;
     setTargetStatus('trig', targetId, 'uploading', '⬆ Salvando imagem...');
@@ -1194,6 +1195,7 @@
 
   async function processVideoForTarget(file, targetId) {
     if (!file || !file.type.startsWith('video/')) { toast('⚠️ Arquivo deve ser um vídeo'); return; }
+    if (file.size > 60 * 1024 * 1024) { toast('⚠️ Vídeo muito grande. Máximo permitido: 60 MB.'); return; }
     const t = (project.targets || []).find(t => t.id === targetId);
     if (!t) return;
     setTargetStatus('vid', targetId, 'uploading', '⬆ Salvando vídeo localmente...');
