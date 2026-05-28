@@ -577,7 +577,7 @@
 
       const entitiesHTML = targets.map((t,i) => {
         if (!videoSrcs[i]) return '';
-        const scale = 1.15; // vídeo 15% maior que a imagem gatilho
+        const scale = 1.05; // vídeo 5% maior que a imagem gatilho
         const w = scale.toFixed(4);
         const h = (aspects[i] * scale).toFixed(4);
         return `
@@ -603,10 +603,10 @@
                         autoStart: true;
                         uiLoading: no; uiScanning: no; uiError: no;
                         maxTrack: ${targets.length};
-                        filterMinCF: 0.001;
-                        filterBeta: 500;
+                        filterMinCF: 0.0001;
+                        filterBeta: 1000;
                         missTolerance: 20;
-                        warmupTolerance: 3;"
+                        warmupTolerance: 5;"
           color-space="sRGB"
           renderer="colorManagement: true; physicallyCorrectLights: false; antialias: false; alpha: true"
           vr-mode-ui="enabled: false"
