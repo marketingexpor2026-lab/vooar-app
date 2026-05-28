@@ -371,14 +371,26 @@
 
       let project = null, fromCache = false;
 
-      try {
-        const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
-        project = list.find(p => sameId(p.id,pid)) || null;
-        if (project) fromCache = true;
-      } catch {}
+      // ① IndexedDB — cache mais persistente (não é apagado pelo browser com facilidade)
+      if (window.AssetDB) {
+        try {
+          project = await AssetDB.getJSON('project', `${uid}_${pid}`);
+          if (project) { fromCache = true; console.log('[VOOAR] Projeto do IndexedDB'); }
+        } catch(e) { console.warn('[VOOAR] IDB get:', e); }
+      }
 
+      // ② localStorage — fallback legado
       if (!project) {
-        setProgress(4,'Buscando projeto...','Tentando servidor…');
+        try {
+          const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
+          project = list.find(p => sameId(p.id,pid)) || null;
+          if (project) { fromCache = true; console.log('[VOOAR] Projeto do localStorage'); }
+        } catch {}
+      }
+
+      // ③ Servidor — apenas se não encontrado em cache
+      if (!project) {
+        setProgress(4,'Buscando projeto...','Conectando ao servidor…');
         try {
           const r = await fetch(`/api/projects/${uid}/${pid}`, { signal:AbortSignal.timeout(10000) });
           if (r.ok) project = await r.json();
@@ -392,7 +404,13 @@
         } catch(e) { console.warn('[VOOAR] fetch 2:', e.message); }
       }
 
+      // ④ Salva em IndexedDB + localStorage para próximo uso offline
       if (project && !fromCache) {
+        // IndexedDB — principal (persistente)
+        if (window.AssetDB) {
+          AssetDB.storeJSON('project', `${uid}_${pid}`, project).catch(()=>{});
+        }
+        // localStorage — compatibilidade
         try {
           const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
           const idx  = list.findIndex(p=>sameId(p.id,pid));
@@ -405,7 +423,7 @@
         let serverOk = false;
         try { const pg = await fetch('/api/health',{signal:AbortSignal.timeout(4000)}); serverOk = pg.ok; } catch {}
         if (!navigator.onLine)
-          showError('📶','Sem conexão','Conecte-se à internet e tente novamente.');
+          showError('📶','Sem conexão','Abra o projeto online uma vez para habilitar o modo offline.');
         else if (!serverOk)
           showError('🔌','Servidor indisponível','Tente novamente em alguns instantes.');
         else
@@ -413,7 +431,8 @@
         return;
       }
 
-      setStep('s-proj','done'); setProgress(10,'Projeto carregado','');
+      setStep('s-proj','done');
+      setProgress(10, fromCache ? 'Projeto carregado (offline ✓)' : 'Projeto carregado','');
 
       // Normaliza alvos
       const targets = project.targets || [{
@@ -603,8 +622,8 @@
                         autoStart: true;
                         uiLoading: no; uiScanning: no; uiError: no;
                         maxTrack: ${targets.length};
-                        filterMinCF: 0.0001;
-                        filterBeta: 1000;
+                        filterMinCF: 0.001;
+                        filterBeta: 5000;
                         missTolerance: 20;
                         warmupTolerance: 5;"
           color-space="sRGB"
