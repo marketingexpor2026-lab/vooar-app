@@ -11,8 +11,14 @@
   force = true
 
 # Digital Asset Links — necessário para TWA Android funcionar
+[[redirects]]
+  from = "/.well-known/assetlinks.json"
+  to = "/well-known/assetlinks.json"
+  status = 200
+  force = true
+
 [[headers]]
-  for = "/.well-known/assetlinks.json"
+  for = "/well-known/assetlinks.json"
   [headers.values]
     Content-Type = "application/json"
     Access-Control-Allow-Origin = "*"

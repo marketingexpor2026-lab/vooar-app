@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "com.vooar.app",
-        "sha256_cert_fingerprints": ["68:6A:62:DE:12:85:00:08:D5:0F:18:BC:CA:09:4F:0E:F5:E8:B0:F6:AF:3B:C9:FD:20:7B:6E:88:DD:75:4F:4E"]
+        "sha256_cert_fingerprints": ["63:AF:6F:3B:CD:56:43:B6:24:18:53:6C:E9:F0:78:8C:48:0D:D9:2A:3F:D3:AE:FB:70:D6:4C:1E:EC:2B:98:4E"]
       }
     }]

@@ -577,12 +577,14 @@
 
       const entitiesHTML = targets.map((t,i) => {
         if (!videoSrcs[i]) return '';
-        const h = aspects[i].toFixed(4);
+        const scale = 1.15; // vídeo 15% maior que a imagem gatilho
+        const w = scale.toFixed(4);
+        const h = (aspects[i] * scale).toFixed(4);
         return `
           <a-entity mindar-image-target="targetIndex: ${i}">
             <a-plane
               position="0 0 0.0001"
-              width="1"
+              width="${w}"
               height="${h}"
               material="shader: flat; src: #ar-video-${i}; transparent: false; side: double; npot: true;"
             ></a-plane>
