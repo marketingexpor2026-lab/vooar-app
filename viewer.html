@@ -610,20 +610,53 @@
           </a-entity>`;
       }).join('');
 
-      // ── MindAR — parâmetros de estabilização ────────────────────────────
-      // filterMinCF: frequência de corte mínima — baixo = mais suave
-      // filterBeta:  coeficiente de velocidade  — ALTO = reage rápido ao movimento
-      //              → vídeo "gruda" na imagem mesmo movendo o celular
-      // missTolerance: frames sem detecção antes de "perder" o alvo — maior = mais tolerante
-      // warmupTolerance: frames para "confirmar" detecção inicial
+      // ── Componente de suavização extra (2ª camada além do filtro MindAR) ──
+      // Aplica slerp/lerp no quaternion e posição do alvo a cada frame.
+      // factor: 0.0 = estático, 1.0 = sem suavização. 0.45 = bom equilíbrio.
+      if (!AFRAME.components['ar-smooth']) {
+        AFRAME.registerComponent('ar-smooth', {
+          schema: { factor: { default: 0.45 } },
+          init() {
+            this._pos  = new THREE.Vector3();
+            this._quat = new THREE.Quaternion();
+            this._first = true;
+          },
+          tick() {
+            const obj = this.el.object3D;
+            if (!obj.visible) { this._first = true; return; }
+            const cur = obj;
+            if (this._first) {
+              this._pos.copy(cur.position);
+              this._quat.copy(cur.quaternion);
+              this._first = false;
+              return;
+            }
+            const f = this.data.factor;
+            this._pos.lerp(cur.position, f);
+            this._quat.slerp(cur.quaternion, f);
+            cur.position.copy(this._pos);
+            cur.quaternion.copy(this._quat);
+          }
+        });
+      }
+
+      // ── MindAR — parâmetros do filtro One Euro ───────────────────────────
+      // filterMinCF muito baixo  → suavização máxima em repouso (elimina micro-tremor)
+      // filterBeta  muito alto   → reage rápido a movimentos reais
+      // ar-smooth (componente acima) → 2ª camada de lerp/slerp no entity
+      const smoothEntitiesHTML = entitiesHTML.replace(
+        /<a-entity mindar-image-target/g,
+        '<a-entity ar-smooth="factor:0.45" mindar-image-target'
+      );
+
       document.body.insertAdjacentHTML('beforeend', `
         <a-scene
           mindar-image="imageTargetSrc: ${mindSrc};
                         autoStart: true;
                         uiLoading: no; uiScanning: no; uiError: no;
                         maxTrack: ${targets.length};
-                        filterMinCF: 0.001;
-                        filterBeta: 5000;
+                        filterMinCF: 0.00001;
+                        filterBeta: 10000;
                         missTolerance: 20;
                         warmupTolerance: 5;"
           color-space="sRGB"
@@ -635,7 +668,7 @@
             ${assetsHTML}
           </a-assets>
           <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-          ${entitiesHTML}
+          ${smoothEntitiesHTML}
         </a-scene>
       `);
 
