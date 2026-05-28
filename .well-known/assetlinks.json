@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.vooar.app",
+        "sha256_cert_fingerprints": ["68:6A:62:DE:12:85:00:08:D5:0F:18:BC:CA:09:4F:0E:F5:E8:B0:F6:AF:3B:C9:FD:20:7B:6E:88:DD:75:4F:4E"]
+      }
+    }]

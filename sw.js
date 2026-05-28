@@ -1,6 +1,10 @@
-const SHELL_CACHE  = 'vooar-shell-v4';
-const MEDIA_CACHE  = 'vooar-media-v1';
+const SHELL_CACHE = 'vooar-shell-v6';
+const MEDIA_CACHE = 'vooar-media-v2';
+const CDN_CACHE   = 'vooar-cdn-v1';
 
+const KEEP_CACHES = [SHELL_CACHE, MEDIA_CACHE, CDN_CACHE];
+
+// URLs do app shell (mesmo domínio)
 const SHELL = [
   './',
   './index.html',
@@ -16,12 +20,31 @@ const SHELL = [
   './icons/icon-512.png',
 ];
 
-// ── Install: pre-cache app shell ─────────────────────────────────────────────
+// Bibliotecas CDN — versões fixas, imutáveis — pre-cacheamos no install
+const CDN_URLS = [
+  'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js',
+  'https://aframe.io/releases/1.5.0/aframe.min.js',
+  'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js',
+];
+
+// ── Install: pre-cache app shell + CDN ──────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(SHELL_CACHE)
-      .then(cache => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    Promise.all([
+      // App shell — obrigatório
+      caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL)),
+      // CDN — opcional (não falha o install se CDN estiver fora)
+      caches.open(CDN_CACHE).then(cache =>
+        Promise.allSettled(CDN_URLS.map(url =>
+          cache.match(url).then(hit => {
+            if (hit) return; // já cacheado
+            return fetch(url, { cache: 'no-cache' })
+              .then(res => { if (res.ok) cache.put(url, res); })
+              .catch(() => {});
+          })
+        ))
+      ),
+    ]).then(() => self.skipWaiting())
   );
 });
 
@@ -30,7 +53,9 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== SHELL_CACHE && k !== MEDIA_CACHE).map(k => caches.delete(k))
+        keys
+          .filter(k => !KEEP_CACHES.includes(k))
+          .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
@@ -43,19 +68,16 @@ self.addEventListener('fetch', event => {
 
   if (request.method !== 'GET' || !url.protocol.startsWith('http')) return;
 
-  // ── Arquivos de mídia (/uploads/) → cache-first com fallback de rede ──────
+  // ── /uploads/ → cache-first (após primeiro download nunca mais pede rede)
   if (url.pathname.startsWith('/uploads/')) {
     event.respondWith(
       caches.open(MEDIA_CACHE).then(cache =>
         cache.match(request).then(cached => {
           if (cached) return cached;
           return fetch(request).then(res => {
-            if (res.ok && res.status === 200) {
-              // Só cacheia arquivos de mídia (imagem/vídeo/.mind)
+            if (res.ok) {
               const ct = res.headers.get('content-type') || '';
-              if (/image|video|octet/.test(ct)) {
-                cache.put(request, res.clone());
-              }
+              if (/image|video|octet/.test(ct)) cache.put(request, res.clone());
             }
             return res;
           });
@@ -65,34 +87,37 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // ── API: sempre rede, sem cache ───────────────────────────────────────────
+  // ── /api/ → sempre rede, sem cache ───────────────────────────────────────
   if (url.pathname.startsWith('/api/')) return;
 
-  // ── App shell (same-origin HTML/JS/CSS): stale-while-revalidate ──────────
-  if (url.origin === self.location.origin) {
+  // ── CDN externo (MindAR, A-Frame) → cache-first ──────────────────────────
+  // URLs versionadas não mudam; servimos do cache imediatamente.
+  // Se ainda não estiver no cache, busca na rede e guarda.
+  const isCDN = CDN_URLS.includes(request.url);
+  if (isCDN || url.origin !== self.location.origin) {
     event.respondWith(
-      caches.open(SHELL_CACHE).then(cache =>
+      caches.open(CDN_CACHE).then(cache =>
         cache.match(request).then(cached => {
-          const fresh = fetch(request).then(res => {
+          if (cached) return cached;
+          return fetch(request).then(res => {
             if (res.ok) cache.put(request, res.clone());
             return res;
-          }).catch(() => cached);
-          return cached || fresh;
+          }).catch(() => caches.match(request)); // fallback geral
         })
       )
     );
     return;
   }
 
-  // ── CDN externo (MindAR, A-Frame, fontes): network-first ─────────────────
+  // ── App shell (mesmo domínio) → stale-while-revalidate ───────────────────
   event.respondWith(
-    fetch(request)
-      .then(res => {
-        if (res.ok) {
-          caches.open(SHELL_CACHE).then(c => c.put(request, res.clone()));
-        }
-        return res;
+    caches.open(SHELL_CACHE).then(cache =>
+      cache.match(request).then(cached => {
+        const fresh = fetch(request)
+          .then(res => { if (res.ok) cache.put(request, res.clone()); return res; })
+          .catch(() => cached);
+        return cached || fresh;
       })
-      .catch(() => caches.match(request))
+    )
   );
 });

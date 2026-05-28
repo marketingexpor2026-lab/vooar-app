@@ -65,6 +65,17 @@
       transition: all .2s; font-family: inherit;
     }
     .btn-save:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.5); }
+    .btn-publish {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(74,222,128,.15); border: 1.5px solid rgba(74,222,128,.5);
+      border-radius: 10px; padding: 8px 16px;
+      color: #4ade80; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s; font-family: inherit;
+    }
+    .btn-publish:hover { background: rgba(74,222,128,.28); }
+    .btn-publish.syncing { color: #a78bfa; border-color: rgba(167,139,250,.5); background: rgba(167,139,250,.1); }
+    .btn-publish.synced  { color: #4ade80; border-color: rgba(74,222,128,.6); background: rgba(74,222,128,.18); }
+    .btn-publish.error   { color: #f87171; border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.1); }
 
     /* ── Layout ── */
     .layout {
@@ -459,7 +470,7 @@
 <body>
 
 <header>
-  <button class="btn-back" onclick="location.href='dashboard.html'">
+  <button class="btn-back" onclick="_adminEdit ? window.close() : location.href='dashboard.html'">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
     Dashboard
   </button>
@@ -468,6 +479,9 @@
     <button class="btn-preview" onclick="openViewer()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Testar AR
+    </button>
+    <button class="btn-publish" id="publish-btn" onclick="publishProject()" title="Salva e envia ao servidor para o QR funcionar em qualquer dispositivo">
+      ☁️ Publicar
     </button>
     <button class="btn-save" id="save-btn" onclick="saveProject()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -502,33 +516,23 @@
       <!-- Status barra de prontidão -->
       <div id="ar-readiness" style="display:none"></div>
 
-      <!-- .mind file upload -->
+      <!-- .mind file — gerado automaticamente ao subir imagem gatilho -->
       <div class="mind-upload-wrap">
         <div class="mind-row">
           <div class="mind-drop" id="mind-drop" onclick="document.getElementById('mind-file-input').click()">
             <div class="mind-icon" id="mind-icon">🧠</div>
             <div class="mind-info">
-              <div class="mind-label" id="mind-label">Arquivo de Rastreamento (.mind)</div>
-              <div class="mind-sub" id="mind-sub">Necessário para o AR real funcionar</div>
+              <div class="mind-label" id="mind-label">Rastreamento AR</div>
+              <div class="mind-sub" id="mind-sub">Gerado automaticamente ao subir a imagem gatilho</div>
             </div>
           </div>
-          <a class="mind-compiler-btn" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Compilar
-          </a>
         </div>
+        <!-- fallback manual: aceita .mind externo se necessário -->
         <input type="file" id="mind-file-input" accept=".mind" style="display:none" onchange="handleMindFile(event)" />
         <div class="upload-progress" id="mind-progress" style="display:none">
           <div class="upload-progress-fill" id="mind-progress-fill"></div>
         </div>
         <div class="uz-status" id="mind-status"></div>
-
-        <div class="mind-step-tip">
-          <strong>Como gerar o .mind com múltiplas imagens:</strong><br>
-          1. Clique em <strong>"Compilar"</strong> ao lado →<br>
-          2. Envie <strong>todas</strong> as imagens na mesma ordem dos alvos<br>
-          3. Baixe o <code>targets.mind</code> e envie aqui
-        </div>
       </div>
     </div>
 
@@ -649,11 +653,21 @@
 <script src="sync.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-  const user = JSON.parse(localStorage.getItem('vooar_current_user'));
-  if (!user) location.href = 'index.html';
-
   const params    = new URLSearchParams(location.search);
   const projectId = parseInt(params.get('id'));
+  const _adminEdit = params.get('adminEdit') === '1';
+  const _ownerUid  = params.get('uid') ? Number(params.get('uid')) : null;
+
+  // Suporte ao modo adminEdit: admin editando projeto de outro usuário
+  let user = JSON.parse(localStorage.getItem('vooar_current_user'));
+  if (!user && _adminEdit && _ownerUid) {
+    // Admin abrindo editor sem estar logado como usuário normal — cria contexto temporário
+    user = { id: _ownerUid, name: 'Admin', email: 'joabe@vooar.dev', plan: 'Developer' };
+  } else if (!user) {
+    location.href = 'index.html';
+  }
+  // Em modo adminEdit, usa o uid do dono do projeto para todas operações de API/localStorage
+  if (_adminEdit && _ownerUid) user = { ...user, id: _ownerUid };
   let project     = null;
   let editingLayerId = null;
   let serverOnline   = false;
@@ -868,7 +882,7 @@
     if (!project) {
       const list = getProjects();
       project = list.find(p => p.id === projectId);
-      if (!project) { location.href = 'dashboard.html'; return; }
+      if (!project) { location.href = _adminEdit ? 'admin.html' : 'dashboard.html'; return; }
     }
 
     document.getElementById('project-name-input').value = project.name || '';
@@ -976,7 +990,7 @@
             <div class="upload-zone${hasImg ? ' has-media' : ''}" id="trig-zone-${t.id}" onclick="document.getElementById('trig-file-${t.id}').click()">
               <div class="uz-placeholder">
                 <div class="uz-icon">📷</div>
-                <div class="uz-hint"><strong>Clique ou arraste</strong>JPG, PNG · até 20 MB</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>JPG, PNG · máx 3 MB</div>
               </div>
               <img class="uz-preview" id="trig-img-${t.id}" style="display:${hasImg?'block':'none'}" alt="alvo ${i+1}" />
               <div class="uz-overlay">
@@ -1007,7 +1021,7 @@
             <div class="upload-zone${hasVid ? ' has-media' : ''}" id="vid-zone-${t.id}" onclick="document.getElementById('vid-file-${t.id}').click()">
               <div class="uz-placeholder">
                 <div class="uz-icon">🎬</div>
-                <div class="uz-hint"><strong>Clique ou arraste</strong>MP4, MOV · até 500 MB</div>
+                <div class="uz-hint"><strong>Clique ou arraste</strong>MP4, MOV · máx 60 MB</div>
               </div>
               <video class="uz-video-preview" id="vid-preview-${t.id}" muted loop playsinline style="display:none"></video>
               <div class="uz-overlay">
@@ -1061,6 +1075,7 @@
 
   async function processTriggerForTarget(file, targetId) {
     if (!file || !file.type.startsWith('image/')) { toast('⚠️ Arquivo deve ser uma imagem'); return; }
+    if (file.size > 3 * 1024 * 1024) { toast('⚠️ Imagem muito grande. Máximo permitido: 3 MB.'); return; }
     const t = (project.targets || []).find(t => t.id === targetId);
     if (!t) return;
     setTargetStatus('trig', targetId, 'uploading', '⬆ Salvando imagem...');
@@ -1102,6 +1117,9 @@
     zone.classList.add('has-media');
     setTargetStatus('trig', targetId, 'ok', serverUrl ? (driveOnline ? '✓ No Drive' : '✓ No servidor') : '✓ Local');
     renderPreview(); autoSave(); updateReadiness();
+
+    // Compila .mind automaticamente após salvar imagem gatilho
+    autoCompileMind();
   }
 
   // ── .mind file ──────────────────────────────────────────────────────────────
@@ -1168,8 +1186,140 @@
     toast(serverUrl ? '🎯 .mind enviado! AR cross-device ativo.' : '🎯 .mind salvo! AR local pronto.');
   }
 
+  // ── Compilação automática do .mind ─────────────────────────────────────────
+  // Chamada automaticamente após cada upload de imagem gatilho.
+  // 1. Carrega o compilador MindAR (lazy, cacheado após 1ª vez)
+  // 2. Compila TODOS os alvos juntos num único .mind
+  // 3. Salva no IndexedDB + faz upload para o servidor
+  let _compileMindTimer = null; // debounce para múltiplos uploads simultâneos
+  async function autoCompileMind() {
+    // Debounce 300ms — espera todos os alvos serem processados antes de compilar
+    clearTimeout(_compileMindTimer);
+    _compileMindTimer = setTimeout(_doCompileMind, 300);
+  }
+
+  async function _doCompileMind() {
+    const targets = project.targets || [];
+    const validTargets = targets.filter(t => t.triggerImageLocal || t.triggerImage);
+
+    if (validTargets.length === 0) return;
+
+    // Se nem todos os alvos têm imagem, avisa e aguarda
+    if (validTargets.length < targets.length) {
+      const missing = targets.length - validTargets.length;
+      setStatus('mind', 'info', `⏳ Aguardando ${missing} imagem(ns) restante(s) para compilar`);
+      return;
+    }
+
+    const mindIcon  = document.getElementById('mind-icon');
+    const mindLabel = document.getElementById('mind-label');
+    const mindSub   = document.getElementById('mind-sub');
+    const mindDrop  = document.getElementById('mind-drop');
+    const mindProg  = document.getElementById('mind-progress');
+    const mindFill  = document.getElementById('mind-progress-fill');
+
+    setStatus('mind', 'uploading', '⚙️ Compilando AR...');
+    mindDrop.classList.add('uploading');
+    mindDrop.classList.remove('has-file');
+    mindProg.style.display = 'block';
+    mindFill.style.width   = '5%';
+    mindIcon.textContent   = '⚙️';
+    mindLabel.textContent  = 'Compilando arquivo AR...';
+    mindSub.textContent    = 'Isso pode levar alguns segundos';
+
+    try {
+      // ① Carrega compilador MindAR (lazy — só na 1ª vez)
+      if (!window.MINDAR || !window.MINDAR.IMAGE || !window.MINDAR.IMAGE.Compiler) {
+        mindSub.textContent = 'Carregando compilador AR...';
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+          s.onload  = resolve;
+          s.onerror = () => reject(new Error('Falha ao carregar compilador'));
+          document.head.appendChild(s);
+        });
+      }
+      mindFill.style.width = '12%';
+
+      // ② Carrega todas as imagens gatilho
+      mindSub.textContent = 'Carregando imagens...';
+      const images = await Promise.all(validTargets.map(async (t) => {
+        const idbKey = `${projectId}_${t.id}`;
+        let src = null;
+        try { src = await AssetDB.getBlobUrl('image', idbKey, 'image/jpeg'); } catch {}
+        src = src || t.triggerImageLocal || t.triggerImage;
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload  = () => resolve(img);
+          img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+          img.src = src;
+        });
+      }));
+      mindFill.style.width = '18%';
+
+      // ③ Compila
+      const compiler = new window.MINDAR.IMAGE.Compiler();
+      await compiler.compileImageTargets(images, (progress) => {
+        const pct = 18 + Math.round(progress * 62);
+        mindFill.style.width = `${pct}%`;
+        mindSub.textContent  = `Processando com IA... ${Math.round(progress * 100)}%`;
+      });
+
+      mindFill.style.width = '82%';
+      mindSub.textContent  = 'Exportando...';
+      const exportedBuffer = await compiler.exportData();
+
+      // ④ Salva no IndexedDB
+      await MindDB.store(projectId, exportedBuffer);
+      mindFill.style.width = '90%';
+
+      // ⑤ Faz upload para o servidor
+      let serverUrl = null;
+      if (serverOnline) {
+        try {
+          mindSub.textContent = 'Enviando para nuvem...';
+          const blob = new Blob([exportedBuffer], { type: 'application/octet-stream' });
+          const file = new File([blob], `${projectId}.mind`);
+          serverUrl = await uploadFileToServer(file, null);
+        } catch(e) { console.warn('[VOOAR] .mind upload:', e); }
+      }
+
+      mindFill.style.width = '100%';
+      project.mindFile = serverUrl || `indexeddb://${projectId}`;
+
+      setTimeout(() => { mindProg.style.display = 'none'; mindFill.style.width = '0%'; }, 600);
+
+      mindDrop.classList.remove('uploading');
+      mindDrop.classList.add('has-file');
+      mindIcon.textContent  = '✅';
+      const sizeKB = Math.round(exportedBuffer.byteLength / 1024);
+      mindLabel.textContent = `AR compilado · ${sizeKB} KB`;
+      mindSub.textContent   = serverUrl
+        ? '✓ Na nuvem — funciona em qualquer dispositivo'
+        : '✓ Local — funciona neste dispositivo';
+
+      setStatus('mind', 'ok', serverUrl
+        ? '✓ .mind compilado e enviado automaticamente!'
+        : '✓ .mind compilado localmente!');
+
+      autoSave();
+      updateReadiness();
+
+    } catch(err) {
+      console.error('[VOOAR] autoCompileMind:', err);
+      mindProg.style.display = 'none';
+      mindDrop.classList.remove('uploading');
+      mindIcon.textContent  = '⚠️';
+      mindLabel.textContent = 'Compilação automática falhou';
+      mindSub.textContent   = 'Toque aqui para enviar um .mind manualmente';
+      setStatus('mind', 'error', '❌ Falha — toque na área acima para enviar .mind manual');
+    }
+  }
+
   async function processVideoForTarget(file, targetId) {
     if (!file || !file.type.startsWith('video/')) { toast('⚠️ Arquivo deve ser um vídeo'); return; }
+    if (file.size > 60 * 1024 * 1024) { toast('⚠️ Vídeo muito grande. Máximo permitido: 60 MB.'); return; }
     const t = (project.targets || []).find(t => t.id === targetId);
     if (!t) return;
     setTargetStatus('vid', targetId, 'uploading', '⬆ Salvando vídeo localmente...');
@@ -1466,6 +1616,85 @@
     }, 2000);
     const where = driveOnline ? ' no Drive' : serverOnline ? ' no servidor' : ' localmente';
     toast('💾 Projeto salvo' + where);
+  }
+
+  async function publishProject() {
+    const btn = document.getElementById('publish-btn');
+
+    // 1. Salva localmente primeiro
+    await saveProject();
+
+    // 2. Se .mind está só no IndexedDB, faz upload automático para o servidor
+    if (project.mindFile && project.mindFile.startsWith('indexeddb://')) {
+      btn.textContent = '⬆ Enviando .mind...';
+      btn.className = 'btn-publish syncing';
+      try {
+        const blobUrl = await MindDB.getBlobUrl(projectId);
+        if (blobUrl) {
+          const resp   = await fetch(blobUrl);
+          const buf    = await resp.arrayBuffer();
+          const file   = new File([buf], 'targets.mind', { type: 'application/octet-stream' });
+          const svrUrl = await uploadFileToServer(file, null);
+          if (svrUrl) {
+            project.mindFile = svrUrl;
+            document.getElementById('mind-label').textContent = 'targets.mind';
+            document.getElementById('mind-sub').textContent   = svrUrl;
+            setStatus('mind', 'ok', '✓ .mind na nuvem — AR funciona em qualquer dispositivo!');
+            autoSave();
+          }
+        }
+      } catch(e) { console.warn('[VOOAR] Auto-upload .mind failed:', e); }
+    }
+
+    // 3. Verifica assets obrigatórios
+    const allTargets = project.targets || [];
+    const hasMind  = project.mindFile && !project.mindFile.startsWith('indexeddb://');
+    const hasVideo = project.arVideo || allTargets.some(t => t.arVideo);
+    const hasLocalVideo = (project.arVideo||'').startsWith('idb://')
+                       || allTargets.some(t => (t.arVideo||'').startsWith('idb://'));
+
+    if (!hasMind) {
+      btn.textContent = '☁️ Publicar';
+      btn.className = 'btn-publish';
+      toast('⚠️ Compile e faça upload do arquivo .mind antes de publicar!', 5000);
+      return;
+    }
+    if (hasLocalVideo) {
+      toast('⚠️ Vídeo salvo só localmente — use o botão de upload para enviar ao servidor.', 5000);
+      return;
+    }
+
+    // 3. Publica no servidor
+    btn.textContent = '⏳ Publicando...';
+    btn.className = 'btn-publish syncing';
+
+    try {
+      const status = await SyncManager.checkServer();
+      if (status === 'offline' || status === 'no_server') {
+        btn.textContent = '❌ Sem servidor';
+        btn.className = 'btn-publish error';
+        toast('❌ Servidor offline — tente novamente em instantes.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+        return;
+      }
+
+      const ok = await SyncManager.syncProject(user.id, project);
+      if (ok) {
+        btn.textContent = '✅ Publicado!';
+        btn.className = 'btn-publish synced';
+        toast('✅ Publicado! QR funciona em qualquer dispositivo agora.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 5000);
+      } else {
+        btn.textContent = '❌ Falhou';
+        btn.className = 'btn-publish error';
+        toast('❌ Não foi possível publicar — verifique a conexão.', 4000);
+        setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+      }
+    } catch(e) {
+      btn.textContent = '❌ Erro';
+      btn.className = 'btn-publish error';
+      setTimeout(() => { btn.textContent = '☁️ Publicar'; btn.className = 'btn-publish'; }, 4000);
+    }
   }
 
   let autoSaveTimer = null;

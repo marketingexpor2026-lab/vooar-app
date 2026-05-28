@@ -185,6 +185,12 @@
     .empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
     .empty-state .ei{font-size:48px;margin-bottom:14px;display:block}
 
+    /* NOVO PROJETO */
+    .btn-new-project{display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(251,191,36,.06));border:1px solid rgba(251,191,36,.4);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;white-space:nowrap}
+    .btn-new-project:hover{background:linear-gradient(135deg,rgba(251,191,36,.3),rgba(251,191,36,.12));transform:translateY(-1px);box-shadow:0 4px 16px rgba(251,191,36,.2)}
+    /* ADMIN EDIT BANNER */
+    .admin-edit-banner{background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(251,191,36,.04));border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gold);margin-bottom:14px}
+
     @media(max-width:640px){
       nav{padding:0 16px}
       main{padding:80px 16px 60px}
@@ -299,14 +305,17 @@
     <!-- Tabs -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('projects')" id="tab-projects">
-        📁 Projetos <span class="tab-count" id="tc-projects">0</span>
+        📁 Todos os Projetos <span class="tab-count" id="tc-projects">0</span>
       </button>
       <button class="tab-btn" onclick="switchTab('users')" id="tab-users">
         👥 Usuários <span class="tab-count" id="tc-users">0</span>
       </button>
+      <button class="tab-btn" onclick="switchTab('myprojects')" id="tab-myprojects">
+        ⭐ Meus Projetos <span class="tab-count" id="tc-myprojects">0</span>
+      </button>
     </div>
 
-    <!-- Projects -->
+    <!-- All Projects -->
     <div class="tab-panel active" id="panel-projects">
       <div class="toolbar">
         <div class="search-wrap">
@@ -338,6 +347,25 @@
       </div>
       <div class="users-list" id="users-list"></div>
     </div>
+
+    <!-- My Projects -->
+    <div class="tab-panel" id="panel-myprojects">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Buscar nos meus projetos..." id="search-myprojects" oninput="filterMyProjects()" />
+        </div>
+        <button class="btn-new-project" onclick="createNewProject()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Projeto
+        </button>
+        <button class="btn-refresh" onclick="loadMyProjects()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Atualizar
+        </button>
+      </div>
+      <div class="projects-grid" id="myprojects-grid"></div>
+    </div>
   </main>
 </div>
 
@@ -357,15 +385,17 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_TOKEN = 'jvooardev25';
+const ADMIN_TOKEN = 'VooarAdmin@2025';
 const ADMIN_EMAIL = 'joabe@vooar.dev';
 const ADMIN_PASS  = 'VooarDev@2025';
+const ADMIN_ID    = 1; // id fixo do admin no SQLite (ver database.js)
 
 const PLANS = ['Free','Starter','Pro','Business','Developer'];
 const PLAN_LIMITS = { Free:3, Starter:10, Pro:30, Business:100, Developer:Infinity };
 
 let allProjects = [];
 let allUsers    = [];
+let myProjects  = [];
 let pendingDelete = null;
 let sseSource   = null;
 
@@ -373,6 +403,19 @@ let sseSource   = null;
 //  AUTH
 // ═══════════════════════════════════════════════════════════════
 function checkSession() { return sessionStorage.getItem('vooar_admin') === '1'; }
+
+/** Garante que o contexto de usuário do admin está em localStorage
+ *  para que o editor.html funcione normalmente para projetos próprios */
+function setAdminUserContext() {
+  localStorage.setItem('vooar_current_user', JSON.stringify({
+    id:        ADMIN_ID,
+    name:      'Joabe Soares',
+    email:     ADMIN_EMAIL,
+    plan:      'Developer',
+    isAdmin:   true,
+    createdAt: '2025-01-01T00:00:00.000Z',
+  }));
+}
 
 function doAdminLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -385,26 +428,27 @@ function doAdminLogin() {
   }
   err.style.display = 'none';
   sessionStorage.setItem('vooar_admin', '1');
+  setAdminUserContext();
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.add('show');
   loadAll();
   connectSSE();
 }
-function logout() { sessionStorage.removeItem('vooar_admin'); location.reload(); }
 
-document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key==='Enter') doAdminLogin(); });
+function logout() {
+  sessionStorage.removeItem('vooar_admin');
+  location.reload();
+}
+
+document.getElementById('login-pass').addEventListener('keydown',  e => { if (e.key==='Enter') doAdminLogin(); });
 document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-pass').focus(); });
 
 // ═══════════════════════════════════════════════════════════════
-//  SSE — Tempo Real
+//  SSE — Tempo Real  (token via ?t= pois EventSource não suporta headers)
 // ═══════════════════════════════════════════════════════════════
 function connectSSE() {
-  if (sseSource) sseSource.close();
+  if (sseSource) { sseSource.close(); sseSource = null; }
   sseSource = new EventSource(`/api/admin/events?t=${ADMIN_TOKEN}`);
-
-  // Intercepta header via URL param (SSE não suporta headers customizados)
-  // O servidor usará ?t= como fallback de auth
-  sseSource = new EventSource('/api/admin/events');
 
   sseSource.addEventListener('connected', () => {
     setConnBar(true, 'Tempo real ativo — atualizações automáticas');
@@ -421,11 +465,13 @@ function connectSSE() {
   sseSource.addEventListener('project_update', e => {
     const d = JSON.parse(e.data);
     if (d.action === 'upsert') {
-      // Recarrega projetos silenciosamente
       fetchProjects().then(list => { allProjects = list; filterProjects(); updateCounts(); });
+      // Atualiza meus projetos se for do admin
+      if (String(d.userId) === String(ADMIN_ID)) loadMyProjects();
     } else if (d.action === 'delete') {
       allProjects = allProjects.filter(p => String(p.id) !== String(d.projectId));
-      filterProjects(); updateCounts();
+      myProjects  = myProjects.filter(p  => String(p.id) !== String(d.projectId));
+      filterProjects(); filterMyProjects(); updateCounts();
     }
     updateConnTime();
   });
@@ -446,9 +492,15 @@ function connectSSE() {
 
   sseSource.addEventListener('user_deleted', e => {
     const d = JSON.parse(e.data);
-    allUsers    = allUsers.filter(u => String(u.id) !== String(d.userId));
-    allProjects = allProjects.filter(p => String(p._ownerId) !== String(d.userId));
+    allUsers    = allUsers.filter(u    => String(u.id)             !== String(d.userId));
+    allProjects = allProjects.filter(p => String(p._ownerId||p.user_id) !== String(d.userId));
     filterUsers(); filterProjects(); updateCounts();
+    updateConnTime();
+  });
+
+  sseSource.addEventListener('upload', e => {
+    const d = JSON.parse(e.data);
+    toast(`📤 Upload: ${d.filename} (${Math.round(d.size/1024)} KB)`);
     updateConnTime();
   });
 
@@ -482,12 +534,8 @@ async function api(path, opts = {}) {
   return r.json();
 }
 
-async function fetchProjects() {
-  return api('/api/admin/projects').catch(() => allProjects);
-}
-async function fetchUsers() {
-  return api('/api/admin/users').catch(() => allUsers);
-}
+async function fetchProjects() { return api('/api/admin/projects').catch(() => allProjects); }
+async function fetchUsers()    { return api('/api/admin/users').catch(() => allUsers); }
 
 async function loadAll() {
   const btn = document.getElementById('btn-refresh');
@@ -500,7 +548,6 @@ async function loadAll() {
     ]);
     allUsers    = users;
     allProjects = projects;
-    // Stats
     document.getElementById('s-users').textContent    = stats.users;
     document.getElementById('s-projects').textContent = stats.projects;
     document.getElementById('s-views').textContent    = fmtNum(stats.views);
@@ -518,55 +565,62 @@ async function loadAll() {
     updateConnTime();
   } catch(e) { toast('❌ ' + e.message); }
   btn?.classList.remove('spin');
+  // Carrega meus projetos em paralelo
+  loadMyProjects();
 }
 
 function updateCounts() {
-  document.getElementById('tc-projects').textContent = allProjects.length;
-  document.getElementById('tc-users').textContent    = allUsers.length;
+  document.getElementById('tc-projects').textContent   = allProjects.length;
+  document.getElementById('tc-users').textContent      = allUsers.length;
+  document.getElementById('tc-myprojects').textContent = myProjects.length;
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  RENDER PROJETOS
+//  RENDER PROJETOS (todos os usuários)
 // ═══════════════════════════════════════════════════════════════
+function projectCardHTML(p, isOwn = false) {
+  const ft      = (p.targets||[])[0];
+  const thumb   = ft?.triggerImageLocal || p.triggerImageLocal || ft?.triggerImage || p.triggerImage || null;
+  const tc      = p.targets ? p.targets.length : (p.triggerImage ? 1 : 0);
+  const hasVid  = p.targets ? p.targets.some(t => t.arVideo) : !!p.arVideo;
+  const hasMind = !!p.mindFile;
+  const date    = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('pt-BR') : '—';
+  const ownerId = isOwn ? ADMIN_ID : (p._ownerId || p.user_id);
+  const owner   = isOwn ? 'Você' : (p._ownerName || '?');
+  const goldBorder = isOwn ? 'border-color:rgba(251,191,36,.35)' : '';
+  return `
+  <div class="project-card" id="pc-${p.id}" style="${goldBorder}">
+    <div class="card-thumb">
+      ${thumb ? `<img src="${thumb}" onerror="this.style.display='none'" loading="lazy"/>` : `<div class="thumb-placeholder">🎯</div>`}
+      <div class="card-owner-badge">${isOwn ? '⭐ Meu' : `👤 ${esc(owner)}`}</div>
+      <div class="card-badges">
+        ${hasVid&&hasMind ? '<div class="card-badge green">✅ AR</div>' : hasVid ? '<div class="card-badge blue">🎬</div>' : ''}
+        ${tc > 1 ? `<div class="card-badge">🎯 ${tc}</div>` : ''}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-name" title="${esc(p.name||'Sem nome')}">${esc(p.name||'Sem nome')}</div>
+      <div class="card-meta">
+        <span>👁 ${fmtNum(p.views||0)}</span>
+        <span>🎯 ${tc} alvo${tc!==1?'s':''}</span>
+        <span>📅 ${date}</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn-sm edit" onclick="editProject('${ownerId}','${p.id}',${isOwn})">✏️ Editar</button>
+        <button class="btn-sm view" onclick="viewProject('${ownerId}','${p.id}')">👁 AR</button>
+        <button class="btn-sm del"  onclick="confirmDelProject('${ownerId}','${p.id}','${esc(p.name||'')}')">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderProjects(list) {
   const grid = document.getElementById('projects-grid');
   if (!list.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="ei">📁</span>Nenhum projeto.</div>`;
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="ei">📁</span>Nenhum projeto cadastrado.</div>`;
     return;
   }
-  grid.innerHTML = list.map(p => {
-    const ft       = (p.targets||[])[0];
-    const thumb    = ft?.triggerImageLocal || p.triggerImageLocal || ft?.triggerImage || p.triggerImage || null;
-    const tc       = p.targets ? p.targets.length : (p.triggerImage?1:0);
-    const hasVid   = p.targets ? p.targets.some(t=>t.arVideo) : !!p.arVideo;
-    const hasMind  = !!p.mindFile;
-    const date     = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('pt-BR') : '—';
-    const owner    = p._ownerName || '?';
-    return `
-    <div class="project-card" id="pc-${p.id}">
-      <div class="card-thumb">
-        ${thumb ? `<img src="${thumb}" onerror="this.style.display='none'" loading="lazy"/>` : `<div class="thumb-placeholder">🎯</div>`}
-        <div class="card-owner-badge">👤 ${esc(owner)}</div>
-        <div class="card-badges">
-          ${hasVid&&hasMind?'<div class="card-badge green">✅ AR</div>':hasVid?'<div class="card-badge blue">🎬</div>':''}
-          ${tc>1?`<div class="card-badge">🎯 ${tc}</div>`:''}
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-name" title="${esc(p.name||'Sem nome')}">${esc(p.name||'Sem nome')}</div>
-        <div class="card-meta">
-          <span>👁 ${fmtNum(p.views||0)}</span>
-          <span>🎯 ${tc} alvo${tc!==1?'s':''}</span>
-          <span>📅 ${date}</span>
-        </div>
-        <div class="card-actions">
-          <button class="btn-sm edit" onclick="editProject('${p._ownerId||p.user_id}','${p.id}')">✏️ Editar</button>
-          <button class="btn-sm view" onclick="viewProject('${p._ownerId||p.user_id}','${p.id}')">👁 AR</button>
-          <button class="btn-sm del"  onclick="confirmDelProject('${p._ownerId||p.user_id}','${p.id}','${esc(p.name||'')}')">🗑️</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  grid.innerHTML = list.map(p => projectCardHTML(p, false)).join('');
 }
 
 function filterProjects() {
@@ -585,18 +639,19 @@ function filterProjects() {
 function renderUsers(list) {
   const el = document.getElementById('users-list');
   if (!list.length) {
-    el.innerHTML = `<div class="empty-state"><span class="ei">👥</span>Nenhum usuário.</div>`;
+    el.innerHTML = `<div class="empty-state"><span class="ei">👥</span>Nenhum usuário cadastrado.</div>`;
     return;
   }
   el.innerHTML = list.map(u => {
-    const ini   = u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const color = u.isAdmin ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : `linear-gradient(135deg,hsl(${(u.id*37)%360},60%,50%),hsl(${(u.id*37+120)%360},60%,40%))`;
-    const pc    = allProjects.filter(p => String(p._ownerId||p.user_id) === String(u.id)).length;
-    const lim   = PLAN_LIMITS[u.plan] || 3;
+    const ini    = u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const color  = u.isAdmin
+      ? 'linear-gradient(135deg,#fbbf24,#f59e0b)'
+      : `linear-gradient(135deg,hsl(${(u.id*37)%360},60%,50%),hsl(${(u.id*37+120)%360},60%,40%))`;
+    const pc     = allProjects.filter(p => String(p._ownerId||p.user_id) === String(u.id)).length;
+    const lim    = PLAN_LIMITS[u.plan] || 3;
     const limTxt = lim === Infinity ? '∞' : lim;
-    const date  = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
+    const date   = u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '—';
     const planOpts = PLANS.map(pl => `<option value="${pl}" ${u.plan===pl?'selected':''}>${pl}</option>`).join('');
-
     return `
     <div class="user-row${u.isAdmin?' admin-row':''}" id="ur-${u.id}">
       <div class="u-avatar" style="background:${color};color:${u.isAdmin?'#0a0818':'#fff'}">${ini}</div>
@@ -623,15 +678,101 @@ function renderUsers(list) {
 
 function filterUsers() {
   const q = document.getElementById('search-users').value.toLowerCase();
-  renderUsers(q ? allUsers.filter(u => u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q)) : allUsers);
+  renderUsers(q
+    ? allUsers.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    : allUsers
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  AÇÕES
+//  MEUS PROJETOS (admin como criador)
 // ═══════════════════════════════════════════════════════════════
-function editProject(uid, id) {
-  window.open(`editor.html?id=${id}`, '_blank');
+async function loadMyProjects() {
+  try {
+    const list = await fetch(`/api/projects/${ADMIN_ID}`, {
+      headers: { 'x-admin-token': ADMIN_TOKEN }
+    }).then(r => r.ok ? r.json() : []);
+    myProjects = list;
+    // Sincroniza localStorage para o editor funcionar offline
+    localStorage.setItem(`vooar_projects_${ADMIN_ID}`, JSON.stringify(list));
+    filterMyProjects();
+    updateCounts();
+  } catch(e) {
+    console.warn('[Admin] Erro ao carregar meus projetos:', e.message);
+  }
 }
+
+function renderMyProjects(list) {
+  const grid = document.getElementById('myprojects-grid');
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <span class="ei">⭐</span>
+        Você ainda não tem projetos próprios.<br>
+        <button class="btn-new-project" style="margin:16px auto 0;display:inline-flex" onclick="createNewProject()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Criar Novo Projeto
+        </button>
+      </div>`;
+    return;
+  }
+  grid.innerHTML = list.map(p => projectCardHTML(p, true)).join('');
+}
+
+function filterMyProjects() {
+  const q = document.getElementById('search-myprojects').value.toLowerCase();
+  renderMyProjects(q
+    ? myProjects.filter(p => (p.name||'').toLowerCase().includes(q))
+    : myProjects
+  );
+}
+
+/** Cria um novo projeto vazio no contexto do admin e abre o editor */
+function createNewProject() {
+  setAdminUserContext(); // garante que localStorage tem o usuário admin
+  const id = Date.now();
+  const proj = {
+    id,
+    name:        'Novo Projeto',
+    description: '',
+    targets:     [],
+    layers:      [],
+    mindFile:    null,
+    music:       null,
+    qrColor:     '#6c63ff',
+    userName:    'Joabe Soares',
+    userEmail:   ADMIN_EMAIL,
+    createdAt:   new Date().toISOString(),
+    updatedAt:   new Date().toISOString(),
+    views:       0,
+  };
+  // Salva no localStorage para o editor carregar imediatamente
+  const key  = `vooar_projects_${ADMIN_ID}`;
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  list.unshift(proj);
+  localStorage.setItem(key, JSON.stringify(list));
+  // Abre editor diretamente (não precisa de adminEdit pois é o próprio usuário admin)
+  window.open(`editor.html?id=${id}`, '_blank');
+  toast('✅ Novo projeto criado — abrindo editor...');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AÇÕES — projetos
+// ═══════════════════════════════════════════════════════════════
+/**
+ * editProject(uid, id, isOwn)
+ * isOwn = true → admin editando projeto próprio, abre normalmente
+ * isOwn = false → admin editando projeto de outro usuário, passa ?adminEdit=1&uid=
+ */
+function editProject(uid, id, isOwn = false) {
+  setAdminUserContext(); // garante que vooar_current_user está no localStorage
+  if (isOwn || String(uid) === String(ADMIN_ID)) {
+    window.open(`editor.html?id=${id}`, '_blank');
+  } else {
+    window.open(`editor.html?id=${id}&uid=${uid}&adminEdit=1`, '_blank');
+  }
+}
+
 function viewProject(uid, id) {
   window.open(`viewer.html?uid=${uid}&id=${id}`, '_blank');
 }
@@ -639,10 +780,10 @@ function viewProject(uid, id) {
 async function changePlan(userId, plan) {
   try {
     await api(`/api/admin/users/${userId}/plan`, { method: 'PUT', body: JSON.stringify({ plan }) });
-    const u = allUsers.find(x => String(x.id)===String(userId));
+    const u = allUsers.find(x => String(x.id) === String(userId));
     if (u) u.plan = plan;
     toast(`✅ Plano de ${u?.name||'usuário'} alterado para ${plan}`);
-  } catch(e) { toast('❌ '+e.message); }
+  } catch(e) { toast('❌ ' + e.message); }
 }
 
 function confirmDelProject(uid, id, name) {
@@ -653,6 +794,7 @@ function confirmDelProject(uid, id, name) {
   document.getElementById('btn-confirm-del').onclick = executeDelete;
   document.getElementById('modal-overlay').classList.add('open');
 }
+
 function confirmDelUser(id, name) {
   pendingDelete = { type:'user', id };
   document.getElementById('modal-icon').textContent  = '👤';
@@ -661,25 +803,28 @@ function confirmDelUser(id, name) {
   document.getElementById('btn-confirm-del').onclick = executeDelete;
   document.getElementById('modal-overlay').classList.add('open');
 }
+
 async function executeDelete() {
   closeModal();
   if (!pendingDelete) return;
   try {
     if (pendingDelete.type === 'project') {
-      await api(`/api/admin/projects/${pendingDelete.uid}/${pendingDelete.id}`, { method:'DELETE' });
-      allProjects = allProjects.filter(p => String(p.id)!==String(pendingDelete.id));
-      filterProjects(); updateCounts();
+      await api(`/api/admin/projects/${pendingDelete.uid}/${pendingDelete.id}`, { method: 'DELETE' });
+      allProjects = allProjects.filter(p => String(p.id) !== String(pendingDelete.id));
+      myProjects  = myProjects.filter(p  => String(p.id) !== String(pendingDelete.id));
+      filterProjects(); filterMyProjects(); updateCounts();
       toast('🗑️ Projeto excluído');
     } else {
-      await api(`/api/admin/users/${pendingDelete.id}`, { method:'DELETE' });
-      allUsers    = allUsers.filter(u => String(u.id)!==String(pendingDelete.id));
-      allProjects = allProjects.filter(p => String(p._ownerId||p.user_id)!==String(pendingDelete.id));
+      await api(`/api/admin/users/${pendingDelete.id}`, { method: 'DELETE' });
+      allUsers    = allUsers.filter(u => String(u.id) !== String(pendingDelete.id));
+      allProjects = allProjects.filter(p => String(p._ownerId||p.user_id) !== String(pendingDelete.id));
       filterUsers(); filterProjects(); updateCounts();
       toast('🗑️ Usuário excluído');
     }
-  } catch(e) { toast('❌ '+e.message); }
+  } catch(e) { toast('❌ ' + e.message); }
   pendingDelete = null;
 }
+
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   pendingDelete = null;
@@ -689,29 +834,32 @@ function closeModal() {
 //  UTILS
 // ═══════════════════════════════════════════════════════════════
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b   => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'   + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  // Carrega meus projetos ao entrar na aba
+  if (name === 'myprojects') loadMyProjects();
 }
+
 function fmtNum(n) {
-  if(n>=1e6)return(n/1e6).toFixed(1)+'M';
-  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
-  return String(n||0);
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return String(n || 0);
 }
 function fmtBytes(b) {
-  if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';
-  if(b>=1048576)   return(b/1048576).toFixed(1)+' MB';
-  if(b>=1024)      return(b/1024).toFixed(1)+' KB';
-  return b+' B';
+  if (b >= 1073741824) return (b/1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576)    return (b/1048576).toFixed(1)    + ' MB';
+  if (b >= 1024)       return (b/1024).toFixed(1)       + ' KB';
+  return b + ' B';
 }
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function toast(msg,ms=3000) {
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),ms);
+function toast(msg, ms = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
 }
 function bumpStat(id, val) {
   const el = document.getElementById(id);
@@ -725,6 +873,7 @@ function bumpStat(id, val) {
 //  BOOT
 // ═══════════════════════════════════════════════════════════════
 if (checkSession()) {
+  setAdminUserContext(); // restaura contexto de usuário ao recarregar
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.add('show');
   loadAll();

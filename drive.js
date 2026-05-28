@@ -107,7 +107,43 @@ const AssetDB = (() => {
     }
   }
 
-  return { store, getBlobUrl, has, remove, fetchAndStore };
+  /**
+   * Salva um objeto JSON no IndexedDB (codificado como UTF-8 ArrayBuffer).
+   * @param {string}        type  ex: 'project'
+   * @param {string|number} id
+   * @param {object}        obj
+   */
+  async function storeJSON(type, id, obj) {
+    try {
+      const buf = new TextEncoder().encode(JSON.stringify(obj)).buffer;
+      await store(type, id, buf);
+      return true;
+    } catch(e) {
+      console.warn(`[AssetDB] storeJSON ${type}/${id}:`, e);
+      return false;
+    }
+  }
+
+  /**
+   * Recupera um objeto JSON armazenado por storeJSON.
+   * Retorna null se não encontrado ou se JSON inválido.
+   */
+  async function getJSON(type, id) {
+    const db = await open();
+    return new Promise(resolve => {
+      const tx  = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key(type, id));
+      req.onsuccess = e => {
+        const buf = e.target.result;
+        if (!buf) return resolve(null);
+        try { resolve(JSON.parse(new TextDecoder().decode(buf))); }
+        catch  { resolve(null); }
+      };
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  return { store, getBlobUrl, has, remove, fetchAndStore, storeJSON, getJSON };
 })();
 
 // ── MindDB — alias para backwards-compat (.mind sempre usa tipo 'mind') ──────

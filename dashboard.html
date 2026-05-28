@@ -452,24 +452,14 @@
     <p id="limit-modal-msg">Você atingiu o limite de projetos do plano <strong id="limit-plan-name">Free</strong>. Faça upgrade para criar mais projetos.</p>
     <div class="plan-cards">
       <div class="upgrade-card" onclick="closeModals()">
-        <div class="uc-name">Starter</div>
+        <div class="uc-name">Standard</div>
         <div class="uc-limit">10</div>
-        <div class="uc-sub">projetos</div>
+        <div class="uc-sub">projetos · R$ 59/mês</div>
       </div>
       <div class="upgrade-card featured" onclick="closeModals()">
         <div class="uc-name">Pro ⭐</div>
-        <div class="uc-limit">30</div>
-        <div class="uc-sub">projetos</div>
-      </div>
-      <div class="upgrade-card" onclick="closeModals()">
-        <div class="uc-name">Business</div>
-        <div class="uc-limit">100</div>
-        <div class="uc-sub">projetos</div>
-      </div>
-      <div class="upgrade-card" onclick="closeModals()">
-        <div class="uc-name">Developer</div>
-        <div class="uc-limit">∞</div>
-        <div class="uc-sub">ilimitado</div>
+        <div class="uc-limit">20</div>
+        <div class="uc-sub">projetos · R$ 79/mês</div>
       </div>
     </div>
     <div class="modal-actions">
@@ -699,7 +689,7 @@
     if (!planLimits) {
       const localCount = getProjects().length;
       const localPlan  = user.plan || 'Free';
-      const localLimit = { Free: 3, Starter: 10, Pro: 30, Business: 100, Developer: Infinity }[localPlan] || 3;
+      const localLimit = { Free: 1, Starter: 10, Standard: 10, Pro: 20, Business: 100, Developer: Infinity }[localPlan] || 1;
       if (localCount >= localLimit && isFinite(localLimit)) {
         // Preenche planLimits com dados locais para exibir o modal
         planLimits = { plan: localPlan, limit: localLimit, current: localCount, canCreate: false };

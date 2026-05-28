@@ -36,9 +36,13 @@ const storage = multer.diskStorage({
     cb(null, `${uuidv4()}${path.extname(file.originalname).toLowerCase() || '.bin'}`);
   }
 });
+const LIMIT_IMAGE_BYTES = 3  * 1024 * 1024;  //  3 MB
+const LIMIT_VIDEO_BYTES = 60 * 1024 * 1024;  // 60 MB
+const LIMIT_MIND_BYTES  = 60 * 1024 * 1024;  // 60 MB (arquivo .mind pode ser grande)
+
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 },
+  limits: { fileSize: LIMIT_VIDEO_BYTES },   // limite global = maior dos limites
   fileFilter: (req, file, cb) => {
     const ok = file.originalname.endsWith('.mind')
       || /^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)
@@ -49,7 +53,9 @@ const upload = multer({
 
 // ── Admin middleware ───────────────────────────────────────────────────────────
 function requireAdmin(req, res, next) {
-  if (req.headers['x-admin-token'] !== DB.ADMIN_TOKEN)
+  // Aceita token via header (fetch/XHR) ou query param ?t= (EventSource não suporta headers)
+  const token = req.headers['x-admin-token'] || req.query.t;
+  if (token !== DB.ADMIN_TOKEN)
     return res.status(403).json({ error: 'Acesso negado' });
   next();
 }
@@ -80,10 +86,23 @@ app.get('/api/health', (req, res) => {
 // ── Upload ────────────────────────────────────────────────────────────────────
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo' });
+
   const isMind  = req.file.originalname.endsWith('.mind');
   const isVideo = req.file.mimetype.startsWith('video/');
-  const folder  = isMind ? 'mind' : isVideo ? 'videos' : 'images';
-  const url     = `/uploads/${folder}/${req.file.filename}`;
+  const isImage = req.file.mimetype.startsWith('image/');
+
+  // Validação de tamanho por tipo (proteção server-side)
+  if (isImage && req.file.size > LIMIT_IMAGE_BYTES) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(413).json({ error: `Imagem muito grande. Máximo permitido: 3 MB.` });
+  }
+  if ((isVideo || isMind) && req.file.size > LIMIT_VIDEO_BYTES) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(413).json({ error: `Arquivo muito grande. Máximo permitido: 60 MB.` });
+  }
+
+  const folder = isMind ? 'mind' : isVideo ? 'videos' : 'images';
+  const url    = `/uploads/${folder}/${req.file.filename}`;
   console.log(`[upload] ${req.file.originalname} → ${url} (${Math.round(req.file.size/1024)} KB)`);
   broadcastAdmin('upload', { filename: req.file.originalname, url, size: req.file.size });
   res.json({ ok: true, url, filename: req.file.filename, sizeKB: Math.round(req.file.size/1024) });
@@ -145,15 +164,20 @@ app.get('/api/projects/:uid/:id', (req, res) => {
 });
 
 app.post('/api/projects/:uid', (req, res) => {
-  const project = req.body;
-  const saved   = DB.upsertProject(req.params.uid, project);
-  broadcastAdmin('project_update', {
-    projectId: project.id,
-    name:      project.name,
-    userId:    req.params.uid,
-    action:    'upsert',
-  });
-  res.json({ ok: true, project: saved });
+  try {
+    const project = req.body;
+    const saved   = DB.upsertProject(req.params.uid, project);
+    broadcastAdmin('project_update', {
+      projectId: project.id,
+      name:      project.name,
+      userId:    req.params.uid,
+      action:    'upsert',
+    });
+    res.json({ ok: true, project: saved });
+  } catch(e) {
+    console.error('[POST /api/projects] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/projects/:uid/:id', (req, res) => {

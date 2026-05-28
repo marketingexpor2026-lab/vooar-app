@@ -1,0 +1,10 @@
+Keep this file and signing.keystore in a safe place. You'll need these files if you want to upload future versions of your PWA to the Google Play Store.
+
+Key store file: signing.keystore
+Key store password: zIo31CzgpaWO
+Key alias: my-key-alias
+Key password: zIo31CzgpaWO
+Signer's full name: VOOAR Admin
+Signer's organization: VOOAR — Realidade Aumentada
+Signer's organizational unit: Engineering
+Signer's country code: US

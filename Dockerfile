@@ -1,24 +1,18 @@
 FROM node:20-slim
 
-# Install build dependencies for native modules (better-sqlite3)
-RUN apt-get update && apt-get install -y \
-    python3 \
-        make \
-            g++ \
-                pkg-config \
-                    && rm -rf /var/lib/apt/lists/*
+# Build tools for better-sqlite3 native compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-                    WORKDIR /app
+WORKDIR /app
 
-                    # Copy package files
-                    COPY package*.json ./
+# Install deps first (better layer caching)
+COPY package.json ./
+RUN npm install
 
-                    # Install dependencies with native compilation
-                    RUN npm install
+# Copy app source
+COPY . .
 
-                    # Copy app source
-                    COPY . .
-
-                    EXPOSE 3000
-
-                    CMD ["node", "server.js"]
+EXPOSE 3000
+CMD ["node", "server.js"]
