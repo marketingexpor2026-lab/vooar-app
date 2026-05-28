@@ -10,9 +10,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <title>VOOAR AR</title>
-    <meta name="description" content="Aponte a câmera para a imagem e veja a mágica acontecer!" />
 
-    <!-- Drive + IndexedDB helper -->
+    <!-- Drive + IndexedDB -->
     <script src="drive.js"></script>
     <script src="sync.js"></script>
     <!-- MindAR + A-Frame -->
@@ -21,163 +20,184 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { overflow:hidden; background:#000; font-family:'Arial',sans-serif; }
 
-      /* ── Tela de carregamento ── */
+      /* ── Tela de carregamento ────────────────────────────────────── */
       #loading-screen {
-        position: fixed; inset: 0;
-        background: linear-gradient(135deg, #0a0a2e 0%, #1a1a5e 50%, #0d47a1 100%);
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        z-index: 9999; transition: opacity 0.6s ease;
+        position:fixed; inset:0;
+        background:linear-gradient(135deg,#0a0a2e 0%,#1a1a5e 50%,#0d47a1 100%);
+        display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:0;
+        z-index:9999; transition:opacity .6s ease;
       }
-      #loading-screen.hidden { opacity: 0; pointer-events: none; }
+      #loading-screen.hidden { opacity:0; pointer-events:none; }
 
       .vooar-logo {
-        color: #fff; font-size: 2.5rem; font-weight: 800;
-        letter-spacing: 4px; margin-bottom: 16px; text-transform: uppercase;
+        color:#fff; font-size:2.5rem; font-weight:800;
+        letter-spacing:4px; margin-bottom:12px; text-transform:uppercase;
       }
-      .vooar-logo span { color: #42a5f5; }
-      .loading-text {
-        color: rgba(255,255,255,.7); font-size: .95rem;
-        margin-bottom: 32px; letter-spacing: 1px; text-align: center; padding: 0 20px;
+      .vooar-logo span { color:#42a5f5; }
+
+      /* Step labels */
+      #step-label {
+        color:rgba(255,255,255,.8); font-size:.9rem;
+        margin-bottom:6px; letter-spacing:.8px; text-align:center;
+        padding:0 24px; min-height:22px;
       }
-      .loading-sub {
-        color: rgba(255,255,255,.4); font-size: .75rem;
-        margin-top: 16px; letter-spacing: .5px; text-align: center; padding: 0 20px;
+      #step-sub {
+        color:rgba(255,255,255,.4); font-size:.72rem;
+        letter-spacing:.4px; text-align:center; padding:0 24px;
+        min-height:18px; margin-bottom:22px;
       }
+
+      /* Progress bar */
+      .prog-wrap {
+        width:240px; height:6px; background:rgba(255,255,255,.12);
+        border-radius:3px; overflow:hidden; margin-bottom:10px;
+      }
+      #prog-bar {
+        height:100%; width:0%; border-radius:3px;
+        background:linear-gradient(90deg,#42a5f5,#00d4ff);
+        transition:width .25s ease;
+      }
+      #prog-pct {
+        font-size:11px; color:rgba(255,255,255,.4);
+        letter-spacing:.3px; text-align:center; margin-bottom:24px;
+      }
+
+      /* Spinner (só aparece em etapas sem progresso numérico) */
       .spinner {
-        width: 48px; height: 48px;
-        border: 4px solid rgba(255,255,255,.2);
-        border-top-color: #42a5f5;
-        border-radius: 50%; animation: spin .9s linear infinite;
+        width:40px; height:40px;
+        border:3px solid rgba(255,255,255,.15);
+        border-top-color:#42a5f5;
+        border-radius:50%; animation:spin .8s linear infinite;
+        display:none;
       }
-      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner.show { display:block; }
+      @keyframes spin { to { transform:rotate(360deg); } }
 
-      /* ── Progresso de cache ── */
-      .cache-bar-wrap {
-        width: 200px; height: 4px; background: rgba(255,255,255,.15);
-        border-radius: 2px; margin-top: 18px; overflow: hidden; display: none;
+      /* Steps checklist */
+      #steps-list {
+        display:flex; flex-direction:column; gap:6px;
+        margin-top:8px; min-width:220px;
       }
-      .cache-bar-wrap.show { display: block; }
-      .cache-bar { height: 100%; background: #42a5f5; border-radius: 2px; width: 0%; transition: width .3s; }
-      .cache-label { font-size: 10px; color: rgba(255,255,255,.4); margin-top: 6px; text-align: center; letter-spacing: .4px; }
+      .step-item {
+        display:flex; align-items:center; gap:10px;
+        font-size:12px; color:rgba(255,255,255,.35);
+        letter-spacing:.3px; transition:color .3s;
+      }
+      .step-item.done  { color:rgba(74,222,128,.85); }
+      .step-item.active{ color:rgba(255,255,255,.85); }
+      .step-item .ic { font-size:14px; width:18px; text-align:center; }
 
-      /* ── Tela de erro ── */
+      /* ── Tela de erro ─────────────────────────────────────────────── */
       #error-screen {
-        position: fixed; inset: 0;
-        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-        display: none; flex-direction: column;
-        align-items: center; justify-content: center;
-        z-index: 9999; padding: 40px; text-align: center; gap: 16px;
+        position:fixed; inset:0;
+        background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+        display:none; flex-direction:column;
+        align-items:center; justify-content:center;
+        z-index:9999; padding:40px; text-align:center; gap:16px;
       }
-      #error-screen.show { display: flex; }
-      .err-icon { font-size: 52px; }
-      #error-screen h2 { color: #fff; font-size: 20px; font-weight: 700; }
-      #error-screen p { color: rgba(255,255,255,.55); font-size: 14px; line-height: 1.7; max-width: 300px; }
+      #error-screen.show { display:flex; }
+      .err-icon { font-size:52px; }
+      #error-screen h2 { color:#fff; font-size:20px; font-weight:700; }
+      #error-screen p  { color:rgba(255,255,255,.55); font-size:14px; line-height:1.7; max-width:300px; }
       .btn-back-err {
-        margin-top: 8px; padding: 12px 28px; border-radius: 12px;
-        background: linear-gradient(135deg, #6c63ff, #00d4ff);
-        color: #fff; font-size: 14px; font-weight: 600;
-        text-decoration: none; display: inline-block; border: none; cursor: pointer;
+        margin-top:8px; padding:12px 28px; border-radius:12px;
+        background:linear-gradient(135deg,#6c63ff,#00d4ff);
+        color:#fff; font-size:14px; font-weight:600;
+        text-decoration:none; display:inline-block; border:none; cursor:pointer;
       }
 
-      /* ── Instrução de mira ── */
+      /* ── HUD ──────────────────────────────────────────────────────── */
       #scan-hint {
-        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-        background: rgba(0,0,0,.6); color: #fff;
-        padding: 12px 24px; border-radius: 30px; font-size: .9rem;
-        letter-spacing: .5px; backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,.15);
-        z-index: 100; transition: opacity .5s; white-space: nowrap;
+        position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+        background:rgba(0,0,0,.6); color:#fff;
+        padding:12px 24px; border-radius:30px; font-size:.9rem;
+        letter-spacing:.5px; backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,.15);
+        z-index:100; transition:opacity .5s; white-space:nowrap;
       }
-      #scan-hint.hidden { opacity: 0; pointer-events: none; }
+      #scan-hint.hidden { opacity:0; pointer-events:none; }
 
-      /* ── Badge de detecção ── */
       #detected-badge {
-        position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-        background: rgba(66,165,245,.9); color: #fff;
-        padding: 8px 20px; border-radius: 20px; font-size: .85rem;
-        font-weight: 600; letter-spacing: 1px;
-        z-index: 100; opacity: 0; transition: opacity .4s;
-        backdrop-filter: blur(6px); white-space: nowrap;
+        position:fixed; top:24px; left:50%; transform:translateX(-50%);
+        background:rgba(66,165,245,.9); color:#fff;
+        padding:8px 20px; border-radius:20px; font-size:.85rem;
+        font-weight:600; letter-spacing:1px;
+        z-index:100; opacity:0; transition:opacity .4s;
+        backdrop-filter:blur(6px); white-space:nowrap;
       }
-      #detected-badge.visible { opacity: 1; }
+      #detected-badge.visible { opacity:1; }
 
-      /* ── Botão fechar ── */
       #btn-close {
-        position: fixed; top: 20px; right: 20px;
-        width: 40px; height: 40px; border-radius: 50%;
-        background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.3);
-        color: #fff; font-size: 1.2rem; cursor: pointer; z-index: 200;
-        display: flex; align-items: center; justify-content: center;
-        backdrop-filter: blur(6px); transition: background .2s;
+        position:fixed; top:20px; right:20px;
+        width:40px; height:40px; border-radius:50%;
+        background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.3);
+        color:#fff; font-size:1.2rem; cursor:pointer; z-index:200;
+        display:flex; align-items:center; justify-content:center;
+        backdrop-filter:blur(6px); transition:background .2s;
       }
-      #btn-close:hover { background: rgba(255,255,255,.2); }
+      #btn-close:hover { background:rgba(255,255,255,.2); }
 
-      /* ── Botão instalar PWA ── */
       #install-btn {
-        position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-        display: none; align-items: center; gap: 8px;
-        background: linear-gradient(135deg, #6c63ff, #00d4ff);
-        border: none; border-radius: 24px; padding: 11px 22px;
-        color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
-        box-shadow: 0 6px 20px rgba(108,99,255,.5); z-index: 150;
-        letter-spacing: .3px; white-space: nowrap;
+        position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+        display:none; align-items:center; gap:8px;
+        background:linear-gradient(135deg,#6c63ff,#00d4ff);
+        border:none; border-radius:24px; padding:11px 22px;
+        color:#fff; font-size:13px; font-weight:700; cursor:pointer;
+        box-shadow:0 6px 20px rgba(108,99,255,.5); z-index:150;
+        letter-spacing:.3px; white-space:nowrap;
       }
-      #install-btn svg { flex-shrink: 0; }
 
-      /* ── Nome do projeto (HUD) ── */
       #proj-hud {
-        position: fixed; top: 20px; left: 20px;
-        background: rgba(0,0,0,.45); backdrop-filter: blur(12px);
-        border: 1px solid rgba(255,255,255,.12);
-        border-radius: 20px; padding: 6px 14px;
-        font-size: 12px; font-weight: 600; color: #fff;
-        z-index: 100; max-width: calc(100vw - 100px);
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        opacity: 0; transition: opacity .5s;
+        position:fixed; top:20px; left:20px;
+        background:rgba(0,0,0,.45); backdrop-filter:blur(12px);
+        border:1px solid rgba(255,255,255,.12);
+        border-radius:20px; padding:6px 14px;
+        font-size:12px; font-weight:600; color:#fff;
+        z-index:100; max-width:calc(100vw - 100px);
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        opacity:0; transition:opacity .5s;
       }
-      #proj-hud.show { opacity: 1; }
+      #proj-hud.show { opacity:1; }
 
-      /* ── Indicador de referência da imagem ── */
       #trigger-thumb-wrap {
-        position: fixed; bottom: 100px; right: 16px;
-        z-index: 100; opacity: 0; transition: opacity .5s;
+        position:fixed; bottom:100px; right:16px;
+        z-index:100; opacity:0; transition:opacity .5s;
       }
-      #trigger-thumb-wrap.show { opacity: 1; }
+      #trigger-thumb-wrap.show { opacity:1; }
       #trigger-thumb-wrap img {
-        width: 60px; height: 60px; border-radius: 10px;
-        object-fit: cover; border: 2px solid rgba(255,255,255,.35);
-        box-shadow: 0 4px 16px rgba(0,0,0,.5);
+        width:60px; height:60px; border-radius:10px;
+        object-fit:cover; border:2px solid rgba(255,255,255,.35);
+        box-shadow:0 4px 16px rgba(0,0,0,.5);
       }
       #trigger-thumb-wrap p {
-        font-size: 9px; color: rgba(255,255,255,.5); text-align: center;
-        margin-top: 3px; letter-spacing: .3px;
+        font-size:9px; color:rgba(255,255,255,.5); text-align:center;
+        margin-top:3px; letter-spacing:.3px;
       }
 
-      /* ── Badge offline ── */
       #offline-badge {
-        position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
-        background: rgba(0,0,0,.6); border: 1px solid rgba(74,222,128,.3);
-        color: #4ade80; padding: 5px 14px; border-radius: 20px;
-        font-size: 11px; font-weight: 600; letter-spacing: .5px;
-        z-index: 100; display: none; backdrop-filter: blur(6px); white-space: nowrap;
+        position:fixed; bottom:140px; left:50%; transform:translateX(-50%);
+        background:rgba(0,0,0,.6); border:1px solid rgba(74,222,128,.3);
+        color:#4ade80; padding:5px 14px; border-radius:20px;
+        font-size:11px; font-weight:600; letter-spacing:.5px;
+        z-index:100; display:none; backdrop-filter:blur(6px); white-space:nowrap;
       }
 
-      /* ── Tap-to-start (desbloqueio de áudio) ── */
+      /* ── Tap-to-start ─────────────────────────────────────────────── */
       #tap-audio-screen {
-        position: fixed; inset: 0; z-index: 9990;
-        background: rgba(0,0,0,.78); backdrop-filter: blur(6px);
-        display: none; flex-direction: column;
-        align-items: center; justify-content: center; gap: 16px;
-        cursor: pointer;
+        position:fixed; inset:0; z-index:9990;
+        background:rgba(0,0,0,.78); backdrop-filter:blur(6px);
+        display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:16px;
+        cursor:pointer;
       }
-      #tap-audio-screen.show { display: flex; }
-      #tap-audio-screen .tap-icon { font-size: 56px; animation: pulse 1.6s ease-in-out infinite; }
-      #tap-audio-screen .tap-title { color: #fff; font-size: 22px; font-weight: 800; letter-spacing: .5px; }
-      #tap-audio-screen .tap-sub { color: rgba(255,255,255,.5); font-size: 13px; }
+      #tap-audio-screen.show { display:flex; }
+      #tap-audio-screen .tap-icon  { font-size:56px; animation:pulse 1.6s ease-in-out infinite; }
+      #tap-audio-screen .tap-title { color:#fff; font-size:22px; font-weight:800; letter-spacing:.5px; }
+      #tap-audio-screen .tap-sub   { color:rgba(255,255,255,.5); font-size:13px; }
       @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
     </style>
   </head>
@@ -186,12 +206,18 @@
     <!-- Tela de carregamento -->
     <div id="loading-screen">
       <div class="vooar-logo">V<span>OO</span>AR</div>
-      <div class="loading-text" id="loading-text">Carregando experiência AR...</div>
-      <div class="spinner"></div>
-      <div class="loading-sub" id="loading-sub">Aguarde enquanto preparamos a câmera</div>
-      <div class="cache-bar-wrap" id="cache-wrap">
-        <div class="cache-bar" id="cache-bar"></div>
-        <div class="cache-label" id="cache-label">Salvando para uso offline...</div>
+      <div id="step-label">Iniciando...</div>
+      <div id="step-sub">Preparando experiência AR</div>
+      <div class="prog-wrap">
+        <div id="prog-bar"></div>
+      </div>
+      <div id="prog-pct">0%</div>
+      <div class="spinner" id="spinner"></div>
+      <div id="steps-list">
+        <div class="step-item" id="s-proj"><span class="ic">○</span>Carregando projeto</div>
+        <div class="step-item" id="s-video"><span class="ic">○</span>Baixando vídeo AR</div>
+        <div class="step-item" id="s-mind"><span class="ic">○</span>Preparando rastreamento</div>
+        <div class="step-item" id="s-cam"><span class="ic">○</span>Ativando câmera</div>
       </div>
     </div>
 
@@ -199,8 +225,8 @@
     <div id="error-screen">
       <div class="err-icon" id="err-icon">😕</div>
       <h2 id="err-title">Projeto não encontrado</h2>
-      <p id="err-msg">Este link pode ter expirado ou o projeto foi removido.</p>
-      <a class="btn-back-err" href="javascript:history.back()">Voltar</a>
+      <p  id="err-msg">Este link pode ter expirado ou o projeto foi removido.</p>
+      <a  class="btn-back-err" href="javascript:history.back()">Voltar</a>
     </div>
 
     <!-- HUD -->
@@ -210,70 +236,40 @@
     <div id="offline-badge">📦 Modo offline</div>
     <button id="btn-close" onclick="voltarApp()" title="Fechar AR">✕</button>
 
-    <!-- Botão instalar PWA -->
+    <!-- PWA install -->
     <button id="install-btn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M5 10l7 7 7-7"/><path d="M4 19h16"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 3v13M5 10l7 7 7-7"/><path d="M4 19h16"/>
+      </svg>
       Instalar VOOAR
     </button>
 
-    <!-- Tap-to-start: desbloqueio de áudio (exibido após cena carregar) -->
+    <!-- Tap-to-start -->
     <div id="tap-audio-screen" onclick="unlockAudioAndStart()">
       <div class="tap-icon">🔊</div>
       <div class="tap-title">Toque para ativar o áudio</div>
       <div class="tap-sub">Necessário para o vídeo AR ter som</div>
     </div>
 
-    <!-- Miniatura da imagem gatilho -->
+    <!-- Thumbnail gatilho -->
     <div id="trigger-thumb-wrap">
       <img id="trigger-thumb" src="" alt="gatilho" />
       <p>Imagem alvo</p>
     </div>
 
     <script>
-    // ════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     //  Utilitários
-    // ════════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     const params = new URLSearchParams(location.search);
     const uid    = params.get('uid');
     const pid    = parseInt(params.get('id'));
+    const $id    = id => document.getElementById(id);
 
-    const $id = id => document.getElementById(id);
-
-    function setLoadingText(main, sub) {
-      if (main) $id('loading-text').textContent = main;
-      if (sub  !== undefined) $id('loading-sub').textContent = sub;
-    }
-
-    function showCacheProgress(pct, label) {
-      $id('cache-wrap').classList.add('show');
-      $id('cache-bar').style.width = pct + '%';
-      if (label) $id('cache-label').textContent = label;
-    }
-
-    function hideCacheProgress() {
-      $id('cache-wrap').classList.remove('show');
-    }
-
-    function showError(icon, title, msg) {
-      $id('loading-screen').classList.add('hidden');
-      $id('err-icon').textContent = icon;
-      $id('err-title').textContent = title;
-      $id('err-msg').textContent   = msg;
-      $id('error-screen').classList.add('show');
-    }
-
-    function voltarApp() {
-      document.querySelectorAll('video[id^="ar-video-"]').forEach(v => v.pause());
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ action: 'closeAR' }));
-      } else { history.back(); }
-    }
-
-    // ── PWA Install prompt ───────────────────────────────────────────────────
+    // ── PWA install ──────────────────────────────────────────────────────────
     let _installPrompt = null;
     window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      _installPrompt = e;
+      e.preventDefault(); _installPrompt = e;
       $id('install-btn').style.display = 'flex';
     });
     $id('install-btn').addEventListener('click', async () => {
@@ -282,125 +278,144 @@
       const { outcome } = await _installPrompt.userChoice;
       if (outcome === 'accepted') $id('install-btn').style.display = 'none';
     });
-    window.addEventListener('appinstalled', () => {
-      $id('install-btn').style.display = 'none';
-    });
+    window.addEventListener('appinstalled', () => { $id('install-btn').style.display = 'none'; });
 
-    // ── Desbloqueio de áudio (requer gesto do usuário no iOS/Safari) ────────────
+    function voltarApp() {
+      document.querySelectorAll('video[id^="ar-video-"]').forEach(v => v.pause());
+      if (window.ReactNativeWebView)
+        window.ReactNativeWebView.postMessage(JSON.stringify({ action:'closeAR' }));
+      else history.back();
+    }
+
+    // ── Áudio desbloqueio ────────────────────────────────────────────────────
     let _audioUnlocked = false;
-
     function unlockAudioAndStart() {
       if (_audioUnlocked) return;
       _audioUnlocked = true;
-
-      // Unlock AudioContext (necessário para Web Audio API)
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx) {
           const ctx = new AudioCtx();
-          const buf = ctx.createBuffer(1, 1, 22050);
+          const buf = ctx.createBuffer(1,1,22050);
           const src = ctx.createBufferSource();
-          src.buffer = buf;
-          src.connect(ctx.destination);
-          src.start(0);
-          ctx.resume().catch(() => {});
+          src.buffer = buf; src.connect(ctx.destination); src.start(0);
+          ctx.resume().catch(()=>{});
         }
       } catch(e) {}
-
-      // Pre-play+pause em cada vídeo para desbloquear o áudio deles
-      // (DEVE estar dentro de um event handler de gesto do usuário)
       document.querySelectorAll('video[id^="ar-video-"]').forEach(v => {
         v.muted = false;
         const p = v.play();
-        if (p) p.then(() => { v.pause(); v.currentTime = 0; })
-               .catch(() => { v.muted = true; v.currentTime = 0; });
+        if (p) p.then(()=>{ v.pause(); v.currentTime=0; }).catch(()=>{ v.muted=true; v.currentTime=0; });
       });
-
       $id('tap-audio-screen').classList.remove('show');
     }
 
-    // ════════════════════════════════════════════════════════════════════════════
-    //  Inicialização AR (async — aguarda resolução de assets)
-    // ════════════════════════════════════════════════════════════════════════════
+    // ── Step UI ──────────────────────────────────────────────────────────────
+    function setStep(id, state, label) {
+      const el = $id(id);
+      el.className = 'step-item ' + state;
+      const icons = { done:'✓', active:'▶', '':'○' };
+      el.querySelector('.ic').textContent = icons[state] || '○';
+      if (label) el.childNodes[1].textContent = label;
+    }
+    function setProgress(pct, label, sub) {
+      $id('prog-bar').style.width = pct + '%';
+      $id('prog-pct').textContent = Math.round(pct) + '%';
+      if (label) $id('step-label').textContent = label;
+      if (sub   !== undefined) $id('step-sub').textContent = sub;
+    }
+    function showSpinner(v) {
+      $id('spinner').className = 'spinner' + (v?' show':'');
+    }
+    function showError(icon,title,msg) {
+      $id('loading-screen').classList.add('hidden');
+      $id('err-icon').textContent = icon;
+      $id('err-title').textContent = title;
+      $id('err-msg').textContent   = msg;
+      $id('error-screen').classList.add('show');
+    }
+    const sameId = (a,b) => String(a) === String(b);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  Downloader com progresso (retorna Blob URL)
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function downloadWithProgress(url, mimeType, onProgress) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const total  = parseInt(resp.headers.get('content-length') || '0');
+      const reader = resp.body.getReader();
+      const chunks = [];
+      let loaded = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.length;
+        if (total > 0 && onProgress) onProgress(loaded / total);
+      }
+      return new Blob(chunks, { type: mimeType });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  Inicialização AR — PRÉ-CARREGA TUDO antes de abrir a câmera
+    // ═══════════════════════════════════════════════════════════════════════════
     (async function initAR() {
+
       if (!uid || !pid || isNaN(pid)) {
-        showError('🔗', 'Link inválido', 'O QR code não contém os parâmetros necessários.');
+        showError('🔗','Link inválido','O QR code não contém os parâmetros necessários.');
         return;
       }
 
-      // ── 1. Carrega projeto — cascata de 3 fontes ────────────────────────
-      setLoadingText('Carregando projeto...', 'Buscando dados');
+      // ━━ ETAPA 1: Carregar projeto ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      setStep('s-proj','active'); setProgress(2,'Carregando projeto...','Buscando dados');
 
-      let project   = null;
-      let fromCache = false;
+      let project = null, fromCache = false;
 
-      // Compara id de forma robusta (número ou string)
-      const sameId = (a, b) => String(a) === String(b);
-
-      // ① localStorage (mesmo dispositivo — instantâneo)
       try {
         const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
-        project = list.find(p => sameId(p.id, pid)) || null;
+        project = list.find(p => sameId(p.id,pid)) || null;
         if (project) fromCache = true;
       } catch {}
 
-      // ② Endpoint específico /api/projects/:uid/:id
       if (!project) {
-        setLoadingText('Buscando projeto...', 'Tentando servidor (1/2)…');
+        setProgress(4,'Buscando projeto...','Tentando servidor…');
         try {
-          const r = await fetch(`/api/projects/${uid}/${pid}`, { signal: AbortSignal.timeout(10000) });
-          if (r.ok) { project = await r.json(); }
+          const r = await fetch(`/api/projects/${uid}/${pid}`, { signal:AbortSignal.timeout(10000) });
+          if (r.ok) project = await r.json();
         } catch(e) { console.warn('[VOOAR] fetch 1:', e.message); }
       }
 
-      // ③ Fallback: busca lista completa e filtra client-side
-      //    (cobre casos em que o endpoint individual tem problema de rota/id)
       if (!project) {
-        setLoadingText('Buscando projeto...', 'Tentando servidor (2/2)…');
         try {
-          const r = await fetch(`/api/projects/${uid}`, { signal: AbortSignal.timeout(12000) });
-          if (r.ok) {
-            const list = await r.json();
-            project = list.find(p => sameId(p.id, pid)) || null;
-          }
+          const r = await fetch(`/api/projects/${uid}`, { signal:AbortSignal.timeout(12000) });
+          if (r.ok) { const list = await r.json(); project = list.find(p=>sameId(p.id,pid)) || null; }
         } catch(e) { console.warn('[VOOAR] fetch 2:', e.message); }
       }
 
-      // Salva no localStorage para próxima visita
       if (project && !fromCache) {
         try {
           const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
-          const idx  = list.findIndex(p => sameId(p.id, pid));
+          const idx  = list.findIndex(p=>sameId(p.id,pid));
           if (idx >= 0) list[idx] = project; else list.unshift(project);
           localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(list));
         } catch {}
       }
 
       if (!project) {
-        // Diagnóstico: saber se servidor responde ou não
         let serverOk = false;
-        try {
-          const ping = await fetch('/api/health', { signal: AbortSignal.timeout(4000) });
-          serverOk = ping.ok;
-        } catch {}
-
-        let errTitle, errMsg;
-        if (!navigator.onLine) {
-          errTitle = 'Sem conexão à internet';
-          errMsg   = 'Conecte-se à internet e tente novamente. Se já acessou este projeto antes neste dispositivo, pode estar salvo no cache.';
-        } else if (!serverOk) {
-          errTitle = 'Servidor indisponível';
-          errMsg   = 'O servidor VOOAR não está respondendo. Tente novamente em alguns instantes.';
-        } else {
-          errTitle = 'Projeto não sincronizado';
-          errMsg   = 'O projeto existe mas não foi enviado ao servidor. Abra o dashboard no dispositivo de origem, clique em QR do projeto e aguarde "✅ Sincronizado".';
-        }
-
-        showError('😕', errTitle, errMsg);
+        try { const pg = await fetch('/api/health',{signal:AbortSignal.timeout(4000)}); serverOk = pg.ok; } catch {}
+        if (!navigator.onLine)
+          showError('📶','Sem conexão','Conecte-se à internet e tente novamente.');
+        else if (!serverOk)
+          showError('🔌','Servidor indisponível','Tente novamente em alguns instantes.');
+        else
+          showError('😕','Projeto não sincronizado','Acesse o dashboard, abra o QR do projeto e aguarde "✅ Sincronizado".');
         return;
       }
 
-      // ── 2. Normaliza para array de alvos (suporta formato antigo e novo) ────
+      setStep('s-proj','done'); setProgress(10,'Projeto carregado','');
+
+      // Normaliza alvos
       const targets = project.targets || [{
         id: pid,
         triggerImage:      project.triggerImage      || null,
@@ -411,107 +426,156 @@
       }];
 
       if (!targets.some(t => t.arVideo)) {
-        showError('🎬', 'Vídeo não configurado',
-          'Nenhum vídeo AR foi adicionado. Acesse o editor e faça o upload do vídeo.');
+        showError('🎬','Vídeo não configurado','Nenhum vídeo AR foi adicionado. Acesse o editor e faça upload do vídeo.');
         return;
       }
 
-      setLoadingText(`"${project.name}"`, 'Preparando AR...');
+      // ━━ ETAPA 2: Pré-baixar e cachear VÍDEO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      setStep('s-video','active'); setProgress(12,'Preparando vídeo AR...','Verificando cache');
 
-      // ── 3. Resolve VÍDEO para cada alvo ─────────────────────────────────
       const videoMime = 'video/mp4';
-      let isOffline   = false;
       const videoSrcs = [];
+      let isOffline   = false;
 
       for (let i = 0; i < targets.length; i++) {
         const t = targets[i];
         if (!t.arVideo) { videoSrcs.push(null); continue; }
 
-        let src = null;
+        const idbKey = String(t.id || pid);
+
+        // ① Vídeo já no IndexedDB (cache local)
         if (t.arVideo.startsWith('idb://')) {
-          const idbKey = t.arVideo.replace('idb://', '');
-          src = await AssetDB.getBlobUrl('video', idbKey, videoMime);
-          if (!src) {
-            showError('🎬', 'Vídeo não disponível',
-              `O vídeo do alvo ${i+1} está salvo apenas no dispositivo de criação. ` +
-              'Acesse o editor nesse dispositivo e reenvie o vídeo para o servidor.');
+          const key = t.arVideo.replace('idb://','');
+          const blobUrl = await AssetDB.getBlobUrl('video', key, videoMime);
+          if (!blobUrl) {
+            showError('🎬','Vídeo não disponível',
+              `O vídeo está salvo só no dispositivo de criação. Reenvie pelo editor.`);
             return;
           }
+          videoSrcs.push(blobUrl);
           isOffline = true;
-        } else {
-          // Tenta cache local primeiro
-          const idbKey = String(t.id || pid);
-          const cached = await AssetDB.getBlobUrl('video', idbKey, videoMime);
-          if (cached) {
-            src = cached; isOffline = true;
-          } else {
-            src = t.arVideo;
-            // Cache em background (não bloqueia o AR)
-            cacheVideoInBackground(t.arVideo, idbKey, videoMime);
-          }
+          continue;
         }
-        videoSrcs.push(src);
+
+        // ② Já cacheado localmente?
+        const cached = await AssetDB.getBlobUrl('video', idbKey, videoMime);
+        if (cached) {
+          setProgress(12 + (i+1) * 20 / targets.length, 'Vídeo encontrado no cache ✓', 'Usando versão offline');
+          videoSrcs.push(cached);
+          isOffline = true;
+          continue;
+        }
+
+        // ③ Baixar agora com barra de progresso
+        setProgress(12,'Baixando vídeo AR...', `Alvo ${i+1} de ${targets.length}`);
+        try {
+          const blob = await downloadWithProgress(t.arVideo, videoMime, (frac) => {
+            const base = 12 + i * 30 / targets.length;
+            const end  = base + 30 / targets.length;
+            setProgress(base + frac*(end-base), 'Baixando vídeo AR...', `${Math.round(frac*100)}% — alvo ${i+1}`);
+          });
+
+          // Salva no IndexedDB para uso offline
+          try {
+            const buf = await blob.arrayBuffer();
+            await AssetDB.store('video', idbKey, buf);
+            console.log('[VOOAR] Vídeo cacheado:', Math.round(buf.byteLength/1024)+'KB');
+          } catch(e) { console.warn('[VOOAR] Falha ao cachear vídeo:', e); }
+
+          videoSrcs.push(URL.createObjectURL(blob));
+        } catch(e) {
+          console.warn('[VOOAR] Falha ao baixar vídeo, tentando URL direta:', e);
+          videoSrcs.push(t.arVideo); // fallback
+        }
       }
 
-      // ── 4. Resolve ARQUIVO .mind ─────────────────────────────────────────
+      setStep('s-video','done'); setProgress(55,'Vídeo pronto ✓','');
+
+      // ━━ ETAPA 3: Pré-baixar e cachear arquivo .MIND ━━━━━━━━━━━━━━━━━━━━━━━
+      setStep('s-mind','active'); setProgress(56,'Preparando rastreamento AR...','Verificando cache');
+
       let mindSrc = null;
 
+      // ① MindDB local
       if (window.MindDB) {
         try { mindSrc = await MindDB.getBlobUrl(pid); } catch {}
       }
-      if (!mindSrc && project.mindFile && !project.mindFile.startsWith('indexeddb://')) {
-        mindSrc = project.mindFile;
+
+      // ② URL do servidor — se disponível
+      const mindUrl = (!project.mindFile || project.mindFile.startsWith('indexeddb://'))
+        ? null : project.mindFile;
+
+      if (!mindSrc && mindUrl) {
+        // Tenta cachear o .mind file também
+        setProgress(58,'Baixando dados de rastreamento...','Arquivo .mind');
+        try {
+          const blob = await downloadWithProgress(mindUrl, 'application/octet-stream', (frac) => {
+            setProgress(58 + frac * 17, 'Baixando rastreamento...', `${Math.round(frac*100)}%`);
+          });
+          mindSrc = URL.createObjectURL(blob);
+
+          // Salva no MindDB para próxima vez
+          try {
+            if (window.MindDB) {
+              const buf = await blob.arrayBuffer();
+              await MindDB.store(pid, buf);
+            }
+          } catch(e) { console.warn('[VOOAR] MindDB store falhou:', e); }
+        } catch(e) {
+          console.warn('[VOOAR] Falha ao baixar .mind, usando URL direta:', e);
+          mindSrc = mindUrl;
+        }
       }
 
       if (!mindSrc) {
-        showError('🧠', 'Arquivo AR ausente',
-          'O arquivo de rastreamento (.mind) não foi configurado. ' +
-          'Acesse o editor, compile as imagens no MindAR Compiler e faça upload do .mind.');
+        showError('🧠','Arquivo AR ausente',
+          'O arquivo de rastreamento (.mind) não foi configurado. Acesse o editor, compile as imagens e faça upload do .mind.');
         return;
       }
 
-      // ── 5. HUD e thumbnail ───────────────────────────────────────────────
-      $id('proj-hud').textContent = project.name;
-      setTimeout(() => $id('proj-hud').classList.add('show'), 1000);
+      setStep('s-mind','done'); setProgress(78,'Rastreamento pronto ✓','');
 
+      // ━━ Calcula aspect ratio ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      async function resolveAspect(t) {
+        if (t.triggerAspect && t.triggerAspect > 0) return t.triggerAspect;
+        const src = t.triggerImage;
+        if (src && !src.startsWith('data:')) {
+          try {
+            return await new Promise((res,rej) => {
+              const img = new Image();
+              img.onload  = () => res(img.naturalHeight / img.naturalWidth);
+              img.onerror = rej;
+              img.crossOrigin = 'anonymous';
+              img.src = src;
+            });
+          } catch {}
+        }
+        return 0.5625;
+      }
+      const aspects = await Promise.all(targets.map(t => resolveAspect(t)));
+
+      // ━━ HUD / thumbnail ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      $id('proj-hud').textContent = project.name;
+      setTimeout(() => $id('proj-hud').classList.add('show'), 800);
       const firstTarget = targets[0];
       if (firstTarget && (firstTarget.triggerImageLocal || firstTarget.triggerImage)) {
         const src = firstTarget.triggerImageLocal || firstTarget.triggerImage;
         if (src && !src.startsWith('blob:')) {
           $id('trigger-thumb').src = src;
-          setTimeout(() => $id('trigger-thumb-wrap').classList.add('show'), 1400);
+          setTimeout(() => $id('trigger-thumb-wrap').classList.add('show'), 1200);
         }
       }
-
       if (isOffline) $id('offline-badge').style.display = 'block';
 
-      // ── 6. Calcula aspect ratio real de cada alvo ────────────────────────
-      // Usa triggerAspect gravado; se ausente, carrega a imagem e mede
-      async function resolveAspect(t) {
-        if (t.triggerAspect && t.triggerAspect > 0) return t.triggerAspect;
-        const imgSrc = t.triggerImage;
-        if (imgSrc && !imgSrc.startsWith('data:')) {
-          try {
-            return await new Promise((res, rej) => {
-              const img = new Image();
-              img.onload  = () => res(img.naturalHeight / img.naturalWidth);
-              img.onerror = rej;
-              img.crossOrigin = 'anonymous';
-              img.src = imgSrc;
-            });
-          } catch {}
-        }
-        return 0.5625; // fallback 16:9
-      }
-      const aspects = await Promise.all(targets.map(t => resolveAspect(t)));
+      // ━━ ETAPA 4: Montar cena A-Frame e abrir câmera ━━━━━━━━━━━━━━━━━━━━━━
+      setStep('s-cam','active'); setProgress(80,'Abrindo câmera...','Inicializando AR');
 
-      // ── 7. Injeta a-scene com todos os alvos ─────────────────────────────
-      const assetsHTML = targets.map((t, i) => videoSrcs[i]
+      const assetsHTML = targets.map((t,i) => videoSrcs[i]
         ? `<video id="ar-video-${i}" src="${videoSrcs[i]}" preload="auto" playsinline webkit-playsinline loop muted crossorigin="anonymous" style="display:none"></video>`
         : ''
       ).join('\n            ');
 
-      const entitiesHTML = targets.map((t, i) => {
+      const entitiesHTML = targets.map((t,i) => {
         if (!videoSrcs[i]) return '';
         const h = aspects[i].toFixed(4);
         return `
@@ -525,15 +589,28 @@
           </a-entity>`;
       }).join('');
 
+      // ── MindAR — parâmetros de estabilização ────────────────────────────
+      // filterMinCF: frequência de corte mínima — baixo = mais suave
+      // filterBeta:  coeficiente de velocidade  — ALTO = reage rápido ao movimento
+      //              → vídeo "gruda" na imagem mesmo movendo o celular
+      // missTolerance: frames sem detecção antes de "perder" o alvo — maior = mais tolerante
+      // warmupTolerance: frames para "confirmar" detecção inicial
       document.body.insertAdjacentHTML('beforeend', `
         <a-scene
-          mindar-image="imageTargetSrc: ${mindSrc}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no; maxTrack: ${targets.length}; filterMinCF: 0.001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
+          mindar-image="imageTargetSrc: ${mindSrc};
+                        autoStart: true;
+                        uiLoading: no; uiScanning: no; uiError: no;
+                        maxTrack: ${targets.length};
+                        filterMinCF: 0.001;
+                        filterBeta: 500;
+                        missTolerance: 20;
+                        warmupTolerance: 3;"
           color-space="sRGB"
           renderer="colorManagement: true; physicallyCorrectLights: false; antialias: false; alpha: true"
           vr-mode-ui="enabled: false"
           device-orientation-permission-ui="enabled: false"
         >
-          <a-assets>
+          <a-assets timeout="30000">
             ${assetsHTML}
           </a-assets>
           <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -541,25 +618,23 @@
         </a-scene>
       `);
 
-      // ── 7. Eventos da cena ───────────────────────────────────────────────
+      // ── Eventos da cena ────────────────────────────────────────────────
       const scene         = document.querySelector('a-scene');
       const loadingScreen = $id('loading-screen');
       const scanHint      = $id('scan-hint');
       const detectedBadge = $id('detected-badge');
 
       scene.addEventListener('loaded', () => {
+        setStep('s-cam','done'); setProgress(100,'Pronto! Aponte para a imagem ✓','');
         setTimeout(() => {
           loadingScreen.classList.add('hidden');
-          // Mostra tap-to-start para desbloquear áudio
           setTimeout(() => $id('tap-audio-screen').classList.add('show'), 300);
-        }, 800);
+        }, 700);
 
-        // ── Eventos por alvo (APÓS a cena estar carregada) ──────────────────
         let activeTargets = 0;
 
-        targets.forEach((t, i) => {
+        targets.forEach((t,i) => {
           if (!videoSrcs[i]) return;
-
           const entity  = scene.querySelector(`[mindar-image-target="targetIndex: ${i}"]`);
           const videoEl = $id(`ar-video-${i}`);
           if (!entity || !videoEl) return;
@@ -569,19 +644,13 @@
             detectedBadge.classList.add('visible');
             scanHint.classList.add('hidden');
             $id('tap-audio-screen').classList.remove('show');
-
-            // Reinicia o vídeo do início para garantir áudio sincronizado
             videoEl.currentTime = 0;
-
             if (_audioUnlocked) {
-              // Áudio já desbloqueado pelo gesto do usuário
               videoEl.muted = false;
               videoEl.play().catch(() => { videoEl.muted = true; videoEl.play(); });
             } else {
-              // Fallback: toca mutado até o usuário tocar
               videoEl.muted = true;
               videoEl.play().catch(() => {});
-              // Mostra tap-to-start para desbloquear
               $id('tap-audio-screen').classList.add('show');
             }
           });
@@ -589,7 +658,7 @@
           entity.addEventListener('targetLost', () => {
             activeTargets = Math.max(0, activeTargets - 1);
             videoEl.pause();
-            videoEl.currentTime = 0; // Reseta para próxima detecção começar do início
+            videoEl.currentTime = 0;
             if (activeTargets === 0) {
               detectedBadge.classList.remove('visible');
               scanHint.classList.remove('hidden');
@@ -598,64 +667,27 @@
         });
       });
 
-      // ── 7. Solicita câmera ───────────────────────────────────────────────
-      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
-        .catch(e => {
-          if (e.name === 'NotAllowedError') {
-            alert('Por favor, permita o acesso à câmera para usar o AR.');
-          }
-        });
+      // Progresso de inicialização do MindAR (90→99%)
+      let progressInterval = setInterval(() => {
+        const bar  = $id('prog-bar');
+        const curr = parseFloat(bar.style.width || '80');
+        if (curr < 98) {
+          const next = curr + (98 - curr) * 0.08;
+          setProgress(next, 'Abrindo câmera...', 'Inicializando rastreamento AR');
+        }
+      }, 300);
+      scene.addEventListener('loaded', () => clearInterval(progressInterval));
 
-      // ── 8. Incrementa views (silencioso) ─────────────────────────────────
+      // ── Incrementa views ──────────────────────────────────────────────
       try {
         const list = JSON.parse(localStorage.getItem(`vooar_projects_${uid}`) || '[]');
-        const idx  = list.findIndex(p => sameId(p.id, pid));
-        if (idx >= 0) { list[idx].views = (list[idx].views || 0) + 1; localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(list)); }
+        const idx  = list.findIndex(p => sameId(p.id,pid));
+        if (idx >= 0) { list[idx].views = (list[idx].views||0)+1; localStorage.setItem(`vooar_projects_${uid}`, JSON.stringify(list)); }
       } catch {}
-      // Servidor — usa endpoint dedicado (não sobrescreve o projeto)
-      fetch(`/api/projects/${uid}/${pid}/view`, { method: 'POST' }).catch(() => {});
-      // Drive
-      if (window.Drive && Drive.isConfigured()) {
-        Drive.incrementViews(uid, pid);
-      }
+      fetch(`/api/projects/${uid}/${pid}/view`, { method:'POST' }).catch(()=>{});
+      if (window.Drive && Drive.isConfigured()) Drive.incrementViews(uid, pid);
 
-    })(); // fim initAR
-
-
-    // ════════════════════════════════════════════════════════════════════════════
-    //  Cache de vídeo em background (não bloqueia o AR)
-    // ════════════════════════════════════════════════════════════════════════════
-    async function cacheVideoInBackground(url, id, mimeType) {
-      try {
-        showCacheProgress(5, 'Baixando vídeo para uso offline...');
-        const resp = await fetch(url);
-        if (!resp.ok) return;
-
-        const total  = parseInt(resp.headers.get('content-length') || '0');
-        const reader = resp.body.getReader();
-        const chunks = [];
-        let loaded = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          loaded += value.length;
-          if (total > 0) showCacheProgress(Math.round(loaded / total * 90), 'Baixando vídeo...');
-        }
-
-        showCacheProgress(95, 'Salvando offline...');
-        const blob = new Blob(chunks, { type: mimeType });
-        const buf  = await blob.arrayBuffer();
-        await AssetDB.store('video', id, buf);
-        showCacheProgress(100, '✓ Vídeo salvo para uso offline');
-        setTimeout(hideCacheProgress, 2000);
-        console.log('[VOOAR] Vídeo cacheado no IndexedDB:', Math.round(buf.byteLength / 1024) + ' KB');
-      } catch(e) {
-        hideCacheProgress();
-        console.warn('[VOOAR] Cache de vídeo falhou:', e.message);
-      }
-    }
+    })();
     </script>
 
     <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
