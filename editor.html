@@ -516,33 +516,23 @@
       <!-- Status barra de prontidão -->
       <div id="ar-readiness" style="display:none"></div>
 
-      <!-- .mind file upload -->
+      <!-- .mind file — gerado automaticamente ao subir imagem gatilho -->
       <div class="mind-upload-wrap">
         <div class="mind-row">
           <div class="mind-drop" id="mind-drop" onclick="document.getElementById('mind-file-input').click()">
             <div class="mind-icon" id="mind-icon">🧠</div>
             <div class="mind-info">
-              <div class="mind-label" id="mind-label">Arquivo de Rastreamento (.mind)</div>
-              <div class="mind-sub" id="mind-sub">Necessário para o AR real funcionar</div>
+              <div class="mind-label" id="mind-label">Rastreamento AR</div>
+              <div class="mind-sub" id="mind-sub">Gerado automaticamente ao subir a imagem gatilho</div>
             </div>
           </div>
-          <a class="mind-compiler-btn" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Compilar
-          </a>
         </div>
+        <!-- fallback manual: aceita .mind externo se necessário -->
         <input type="file" id="mind-file-input" accept=".mind" style="display:none" onchange="handleMindFile(event)" />
         <div class="upload-progress" id="mind-progress" style="display:none">
           <div class="upload-progress-fill" id="mind-progress-fill"></div>
         </div>
         <div class="uz-status" id="mind-status"></div>
-
-        <div class="mind-step-tip">
-          <strong>Como gerar o .mind com múltiplas imagens:</strong><br>
-          1. Clique em <strong>"Compilar"</strong> ao lado →<br>
-          2. Envie <strong>todas</strong> as imagens na mesma ordem dos alvos<br>
-          3. Baixe o <code>targets.mind</code> e envie aqui
-        </div>
       </div>
     </div>
 
@@ -1127,6 +1117,9 @@
     zone.classList.add('has-media');
     setTargetStatus('trig', targetId, 'ok', serverUrl ? (driveOnline ? '✓ No Drive' : '✓ No servidor') : '✓ Local');
     renderPreview(); autoSave(); updateReadiness();
+
+    // Compila .mind automaticamente após salvar imagem gatilho
+    autoCompileMind();
   }
 
   // ── .mind file ──────────────────────────────────────────────────────────────
@@ -1191,6 +1184,137 @@
     setStatus('mind', 'ok', msg);
     autoSave(); updateReadiness();
     toast(serverUrl ? '🎯 .mind enviado! AR cross-device ativo.' : '🎯 .mind salvo! AR local pronto.');
+  }
+
+  // ── Compilação automática do .mind ─────────────────────────────────────────
+  // Chamada automaticamente após cada upload de imagem gatilho.
+  // 1. Carrega o compilador MindAR (lazy, cacheado após 1ª vez)
+  // 2. Compila TODOS os alvos juntos num único .mind
+  // 3. Salva no IndexedDB + faz upload para o servidor
+  let _compileMindTimer = null; // debounce para múltiplos uploads simultâneos
+  async function autoCompileMind() {
+    // Debounce 300ms — espera todos os alvos serem processados antes de compilar
+    clearTimeout(_compileMindTimer);
+    _compileMindTimer = setTimeout(_doCompileMind, 300);
+  }
+
+  async function _doCompileMind() {
+    const targets = project.targets || [];
+    const validTargets = targets.filter(t => t.triggerImageLocal || t.triggerImage);
+
+    if (validTargets.length === 0) return;
+
+    // Se nem todos os alvos têm imagem, avisa e aguarda
+    if (validTargets.length < targets.length) {
+      const missing = targets.length - validTargets.length;
+      setStatus('mind', 'info', `⏳ Aguardando ${missing} imagem(ns) restante(s) para compilar`);
+      return;
+    }
+
+    const mindIcon  = document.getElementById('mind-icon');
+    const mindLabel = document.getElementById('mind-label');
+    const mindSub   = document.getElementById('mind-sub');
+    const mindDrop  = document.getElementById('mind-drop');
+    const mindProg  = document.getElementById('mind-progress');
+    const mindFill  = document.getElementById('mind-progress-fill');
+
+    setStatus('mind', 'uploading', '⚙️ Compilando AR...');
+    mindDrop.classList.add('uploading');
+    mindDrop.classList.remove('has-file');
+    mindProg.style.display = 'block';
+    mindFill.style.width   = '5%';
+    mindIcon.textContent   = '⚙️';
+    mindLabel.textContent  = 'Compilando arquivo AR...';
+    mindSub.textContent    = 'Isso pode levar alguns segundos';
+
+    try {
+      // ① Carrega compilador MindAR (lazy — só na 1ª vez)
+      if (!window.MINDAR || !window.MINDAR.IMAGE || !window.MINDAR.IMAGE.Compiler) {
+        mindSub.textContent = 'Carregando compilador AR...';
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+          s.onload  = resolve;
+          s.onerror = () => reject(new Error('Falha ao carregar compilador'));
+          document.head.appendChild(s);
+        });
+      }
+      mindFill.style.width = '12%';
+
+      // ② Carrega todas as imagens gatilho
+      mindSub.textContent = 'Carregando imagens...';
+      const images = await Promise.all(validTargets.map(async (t) => {
+        const idbKey = `${projectId}_${t.id}`;
+        let src = null;
+        try { src = await AssetDB.getBlobUrl('image', idbKey, 'image/jpeg'); } catch {}
+        src = src || t.triggerImageLocal || t.triggerImage;
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload  = () => resolve(img);
+          img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+          img.src = src;
+        });
+      }));
+      mindFill.style.width = '18%';
+
+      // ③ Compila
+      const compiler = new window.MINDAR.IMAGE.Compiler();
+      await compiler.compileImageTargets(images, (progress) => {
+        const pct = 18 + Math.round(progress * 62);
+        mindFill.style.width = `${pct}%`;
+        mindSub.textContent  = `Processando com IA... ${Math.round(progress * 100)}%`;
+      });
+
+      mindFill.style.width = '82%';
+      mindSub.textContent  = 'Exportando...';
+      const exportedBuffer = await compiler.exportData();
+
+      // ④ Salva no IndexedDB
+      await MindDB.store(projectId, exportedBuffer);
+      mindFill.style.width = '90%';
+
+      // ⑤ Faz upload para o servidor
+      let serverUrl = null;
+      if (serverOnline) {
+        try {
+          mindSub.textContent = 'Enviando para nuvem...';
+          const blob = new Blob([exportedBuffer], { type: 'application/octet-stream' });
+          const file = new File([blob], `${projectId}.mind`);
+          serverUrl = await uploadFileToServer(file, null);
+        } catch(e) { console.warn('[VOOAR] .mind upload:', e); }
+      }
+
+      mindFill.style.width = '100%';
+      project.mindFile = serverUrl || `indexeddb://${projectId}`;
+
+      setTimeout(() => { mindProg.style.display = 'none'; mindFill.style.width = '0%'; }, 600);
+
+      mindDrop.classList.remove('uploading');
+      mindDrop.classList.add('has-file');
+      mindIcon.textContent  = '✅';
+      const sizeKB = Math.round(exportedBuffer.byteLength / 1024);
+      mindLabel.textContent = `AR compilado · ${sizeKB} KB`;
+      mindSub.textContent   = serverUrl
+        ? '✓ Na nuvem — funciona em qualquer dispositivo'
+        : '✓ Local — funciona neste dispositivo';
+
+      setStatus('mind', 'ok', serverUrl
+        ? '✓ .mind compilado e enviado automaticamente!'
+        : '✓ .mind compilado localmente!');
+
+      autoSave();
+      updateReadiness();
+
+    } catch(err) {
+      console.error('[VOOAR] autoCompileMind:', err);
+      mindProg.style.display = 'none';
+      mindDrop.classList.remove('uploading');
+      mindIcon.textContent  = '⚠️';
+      mindLabel.textContent = 'Compilação automática falhou';
+      mindSub.textContent   = 'Toque aqui para enviar um .mind manualmente';
+      setStatus('mind', 'error', '❌ Falha — toque na área acima para enviar .mind manual');
+    }
   }
 
   async function processVideoForTarget(file, targetId) {
